@@ -1005,8 +1005,13 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
         var del = el("button", "btn", "حذف"); del.type = "button";
         del.style.minHeight = "38px"; del.style.padding = "0 12px";
         del.addEventListener("click", async function () {
-          if (!confirm("حذف الطالب " + s.name + "؟")) return;
-          try { await api("POST", { action: "delStudent", name: s.name }); loadStudents(); toast("تم حذف الطالب"); }
+          if (!del.dataset.armed) {
+            del.dataset.armed = "1"; del.textContent = "تأكيد الحذف؟";
+            setTimeout(function () { if (del.isConnected) { delete del.dataset.armed; del.textContent = "حذف"; } }, 4000);
+            return;
+          }
+          del.disabled = true;
+          try { await api("POST", { action: "delStudent", name: s.name }); await loadStudents(); toast("تم حذف الطالب"); }
           catch (e) { toast("تعذّر الحذف"); }
         });
         row.appendChild(del);
