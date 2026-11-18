@@ -1076,6 +1076,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     syncLangButtons();
     document.querySelectorAll("#worldChips .chip").forEach(function (c) { c.setAttribute("aria-pressed", "false"); });
     $("worldResults").replaceChildren();
+    $("worldSearch").value = "";
     $("worldHint").textContent = "اكتب عنوان الكتاب أو اسم المؤلف ثم اضغط ابحث.";
     shelvesLoaded = false;
     $("worldShelves").replaceChildren();
