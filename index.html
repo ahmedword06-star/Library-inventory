@@ -1318,7 +1318,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
         }
       }
       if (sale.saleability === "FREE") info.appendChild(el("span", "b-price", "مجاني"));
-      else if (sale.listPrice) info.appendChild(el("span", "b-price", "السعر: " + sale.listPrice.amount + " " + sale.listPrice.currencyCode));
+      else if (sale.listPrice) info.appendChild(el("span", "b-price", "السعر: " + sale.listPrice.amount + " " + (sale.listPrice.currencyCode === "OMR" ? "ر.ع." : sale.listPrice.currencyCode)));
       else info.appendChild(el("span", "b-meta", "السعر غير متوفر"));
       if (v.infoLink) {
         var a = el("a", "linkbtn", "عرض الكتاب");
