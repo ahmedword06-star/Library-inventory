@@ -411,9 +411,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
 
 <script>
 (function () {
-  // دخول المعلمين: الرمز نفسه غير مكتوب في الملف أبداً، مخزّن فقط بصمته (SHA-256)
-  var CODE_HASH = "4f9f10b304cfe9b2b11fcb1387f694e18f08ea358c7e9f567434d3ad6cbd7fc4";
-  // مفتاح Google Books المجاني (مشروع Rufuf Library): يرفع حدّ البحث الرقمي اليومي. مقيّد لموقع المدرسة فقط.
+  // دخول المعلمين: الرمز يُتحقق منه في السيرفر فقط — لا يوجد أي أثر له في هذا الملف المنشور.
   var gate = document.getElementById("loginGate");
   var app = document.getElementById("app");
   var studentApp = document.getElementById("studentApp");
@@ -436,18 +434,24 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
   });
   var savedStudent = sessionStorage.getItem("lib-student");
   if (sessionStorage.getItem("lib-auth") === "1") { unlock(); }
-  function hex(buf) { return Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join(""); }
   document.getElementById("loginForm").addEventListener("submit", function (e) {
     e.preventDefault();
     var input = document.getElementById("codeInput");
     var err = document.getElementById("loginErr");
-    if (!window.crypto || !crypto.subtle) { err.textContent = "افتح الموقع من الرابط الآمن (https) للدخول"; err.hidden = false; return; }
-    crypto.subtle.digest("SHA-256", new TextEncoder().encode(input.value.trim())).then(function (buf) {
-      if (hex(buf) === CODE_HASH) { sessionStorage.setItem("lib-auth", "1"); unlock(); }
-      else { err.textContent = "الرمز غير صحيح، حاول مرة أخرى"; err.hidden = false; input.value = ""; input.focus(); }
+    var code = input.value.trim();
+    if (!code) { err.textContent = "اكتب الرمز أولاً"; err.hidden = false; return; }
+    err.hidden = true;
+    api("POST", { action: "teacherLogin", code: code }).then(function () {
+      sessionStorage.setItem("lib-auth", "1");
+      sessionStorage.setItem("lib-teacher-code", code);
+      unlock();
+    }).catch(function (ex) {
+      if (ex && ex.code === "code") { err.textContent = "الرمز غير صحيح، حاول مرة أخرى"; }
+      else { err.textContent = "تعذّر الاتصال، تأكد من الإنترنت وحاول مرة ثانية"; }
+      err.hidden = false; input.value = ""; input.focus();
     });
   });
-  document.getElementById("logoutBtn").addEventListener("click", function () { sessionStorage.removeItem("lib-auth"); location.reload(); });
+  document.getElementById("logoutBtn").addEventListener("click", function () { sessionStorage.removeItem("lib-auth"); sessionStorage.removeItem("lib-teacher-code"); location.reload(); });
   var CATS = ["ديني", "أدب", "علوم", "تاريخ وجغرافيا", "أطفال", "لغة", "فكر واجتماع", "تقنية", "سير وتراجم", "مراجع", "أخرى"];
   var KW = {
     "ديني": ["قران", "تفسير", "حديث", "فقه", "اسلام", "دعاء", "عقيده", "صلاه", "رياض الصالحين", "الصحيح", "الايمان", "شريعه", "سنه النبويه"],
@@ -513,7 +517,10 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     if (method === "GET") {
       res = await fetch(cfg.url + (cfg.url.indexOf("?") >= 0 ? "&" : "?") + "token=" + encodeURIComponent(cfg.token) + "&_=" + Date.now());
     } else {
-      res = await fetch(cfg.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(Object.assign({ token: cfg.token }, body)) });
+      var payload = Object.assign({ token: cfg.token }, body);
+      var tc = sessionStorage.getItem("lib-teacher-code");
+      if (tc) payload.teacherCode = tc;
+      res = await fetch(cfg.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
     }
     if (!res.ok) throw { code: "http" };
     var j = await res.json();
@@ -563,7 +570,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     var ctl = new AbortController();
     var to = setTimeout(function () { ctl.abort(); }, 30000);
     try {
-      var res = await fetch(cfg.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ token: cfg.token, action: "read", image: b64, mime: "image/jpeg" }), signal: ctl.signal });
+      var res = await fetch(cfg.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ token: cfg.token, action: "read", teacherCode: sessionStorage.getItem("lib-teacher-code") || "", image: b64, mime: "image/jpeg" }), signal: ctl.signal });
       if (!res.ok) return null;
       var j = await res.json();
       if (j && j.diag) lastSrvDiag = j.diag;
