@@ -171,6 +171,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
       </div>
       <p id="scanStatus" class="status" role="status">وجّه الكاميرا للغلاف وثبّتها…</p>
       <div class="actions">
+        <button id="scanCapture" class="btn primary" type="button">التقط واقرأ</button>
         <button id="scanStop" class="btn" type="button">إيقاف المسح</button>
       </div>
     </div>
@@ -584,6 +585,15 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
       cv.toBlob(function (b) { res(new File([b], "scan.jpg", { type: "image/jpeg" })); }, "image/jpeg", 0.85);
     });
   }
+  function titlesSimilar(a, b) {
+    if (!a || !b) return false;
+    if (a === b) return true;
+    var aw = a.split(/\s+/), bw = b.split(/\s+/);
+    // عنوان قصير داخل عنوان أطول (مثال: "الأيام" داخل "الأيام طه حسين")
+    if (aw.every(function (w) { return bw.indexOf(w) >= 0; }) || bw.every(function (w) { return aw.indexOf(w) >= 0; })) return true;
+    var common = aw.filter(function (w) { return bw.indexOf(w) >= 0; }).length;
+    return common / Math.max(aw.length, bw.length) >= 0.6;
+  }
   async function startScan() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { toast("المتصفح ما يدعم المسح المباشر. استخدم زر التصوير."); return; }
     if (!window.Tesseract) { toast("مكتبة القراءة ما تحمّلت. تأكد من الإنترنت."); return; }
@@ -593,15 +603,38 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     var v = $("scanVideo"); v.srcObject = scanStream;
     try { await v.play(); } catch (e) {}
     scanOn = true; scanBusy = false; lastScanTitle = ""; scanToken++;
+    ocrStatus = function (k, m) { if (scanOn) setScanStatus(m); };
     $("scanBox").hidden = false; $("draft").hidden = true; $("howto").hidden = true;
-    setScanStatus("وجّه الكاميرا للغلاف وثبّتها…");
+    setScanStatus("جاري تجهيز القراءة (أول مرة فقط)…");
     scanLoop(scanToken);
   }
   function stopScan() {
-    scanOn = false; scanToken++;
+    scanOn = false; scanToken++; ocrStatus = null;
     if (scanStream) { scanStream.getTracks().forEach(function (t) { t.stop(); }); scanStream = null; }
     var v = $("scanVideo"); if (v) v.srcObject = null;
     $("scanBox").hidden = true; $("howto").hidden = false;
+  }
+  async function scanAccept(cv, data) {
+    stopScan();
+    var file = await canvasToFile(cv);
+    lastWasScan = true;
+    openDraft(file);
+    applyOcr(data);
+  }
+  async function scanCapture() {
+    if (!scanOn || scanBusy) return;
+    var cv = frameCanvas();
+    if (!cv) { setScanStatus("الكاميرا لسه تفتح… ثانية وحدة."); return; }
+    scanBusy = true;
+    try {
+      setScanStatus("جاري قراءة اللقطة…");
+      var w = await getWorker();
+      var r = await w.recognize(cv);
+      if (!scanOn) return;
+      if (!ocrLines(r.data).length) { setScanStatus("ما انقرأ شيء. قرّب الغلاف وثبّت يدك وحاول مرة ثانية."); return; }
+      await scanAccept(cv, r.data);
+    } catch (e) { if (scanOn) setScanStatus("تعذّرت القراءة. حاول مرة ثانية."); }
+    finally { scanBusy = false; }
   }
   async function scanLoop(tok) {
     var w;
@@ -619,13 +652,10 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
           var p = parseCover(lines);
           if (p.title && p.title.length >= 3) {
             var n = norm(p.title);
-            if (n && n === lastScanTitle) {
-              // نفس العنوان في لقطتين متتاليتين = قراءة مؤكدة
-              stopScan();
-              var file = await canvasToFile(cv);
-              lastWasScan = true;
-              openDraft(file);
-              applyOcr(r.data);
+            var strong = !!(p.author && p.author.length >= 3);
+            if (n && (strong || titlesSimilar(n, lastScanTitle))) {
+              // عنوان + مؤلف في لقطة واحدة، أو عنوان مشابه في لقطتين = قراءة مؤكدة
+              await scanAccept(cv, r.data);
               return;
             }
             lastScanTitle = n;
@@ -639,6 +669,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
   }
   $("scanBtn").addEventListener("click", function () { lastWasScan = false; startScan(); });
   $("scanStop").addEventListener("click", function () { stopScan(); });
+  $("scanCapture").addEventListener("click", function () { scanCapture(); });
 
   function checkDup() {
     var n = norm(titleIn.value), box = $("dup");
