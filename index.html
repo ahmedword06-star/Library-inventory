@@ -39,6 +39,16 @@ body { margin: 0; background-color: var(--bg); background-image: radial-gradient
 .login-card input { text-align: center; font-size: 20px; letter-spacing: 6px; padding: 10px; }
 .login-err { color: var(--danger); font-size: 14px; font-weight: 600; margin: 0; }
 .logout { background: none; border: 0; color: var(--muted); font-size: 13px; text-decoration: underline; cursor: pointer; padding: 4px; }
+.login-choice { display: flex; flex-direction: column; gap: 10px; }
+.login-choice .btn.ghost { background: var(--surface); color: var(--navy); border: 2px solid var(--navy); font-weight: 700; }
+.login-card form { display: flex; flex-direction: column; gap: 10px; }
+.login-card input.name-input { letter-spacing: normal; font-size: 16px; text-align: right; }
+.social-footer { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center; box-shadow: 0 1px 4px rgba(30,41,59,.06); }
+.social-tag { font-size: 14px; color: var(--muted); font-weight: 600; line-height: 1.7; margin: 0; }
+.social-btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.social-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 16px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font-weight: 700; font-size: 15px; text-decoration: none; }
+.social-btn svg { width: 20px; height: 20px; flex: none; }
+.social-btn:hover { border-color: var(--accent); color: var(--accent-2); }
 h1, h2 { margin: 0; font-weight: 700; }
 h1 { font-size: 28px; line-height: 1.2; } h2 { font-size: 18px; }
 p { margin: 0; }
@@ -120,16 +130,34 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
 </head>
 <body>
 <div id="loginGate" class="login-overlay">
-  <form id="loginForm" class="login-card">
+  <div class="login-card">
     <svg class="logo" viewBox="0 0 96 96" role="img" aria-label="شعار رفوف حذيفة"><rect x="4" y="4" width="88" height="88" rx="22" fill="#D97706"/><rect x="26" y="40" width="11" height="24" rx="2" fill="#1E293B"/><rect x="39" y="33" width="11" height="31" rx="2" fill="#FFFDF9"/><rect x="42" y="33" width="5" height="10" rx="1" fill="#D97706"/><rect x="52" y="44" width="11" height="20" rx="2" fill="#334155"/><rect x="65" y="38" width="11" height="26" rx="2" fill="#1E293B"/><rect x="22" y="64" width="52" height="6" rx="3" fill="#1E293B"/></svg>
     <p class="ministry">وزارة التعليم</p>
     <h1>رفوف حذيفة</h1>
-    <p class="muted small">مكتبة مدرسة حذيفة بن محصن — أدخل الرمز السري</p>
-    <label class="vh" for="codeInput">الرمز السري</label>
-    <input id="codeInput" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="••••••••" required>
-    <p id="loginErr" class="login-err" hidden>الرمز غير صحيح، حاول مرة أخرى</p>
-    <button class="btn primary" type="submit">دخول</button>
-  </form>
+    <p class="muted small">مكتبة مدرسة حذيفة بن محصن</p>
+    <div id="loginChoice" class="login-choice">
+      <button id="toTeacherBtn" class="btn primary" type="button">دخول المعلم</button>
+      <button id="toStudentBtn" class="btn ghost" type="button">دخول الطالب</button>
+    </div>
+    <form id="loginForm" hidden novalidate>
+      <p class="muted small">دخول المعلمين — أدخل الرمز السري</p>
+      <label class="vh" for="codeInput">الرمز السري</label>
+      <input id="codeInput" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="••••••••" required>
+      <p id="loginErr" class="login-err" hidden>الرمز غير صحيح، حاول مرة أخرى</p>
+      <button class="btn primary" type="submit">دخول</button>
+      <button class="linkbtn login-back" type="button">رجوع</button>
+    </form>
+    <form id="studentForm" hidden novalidate>
+      <p class="muted small">دخول الطالب — اكتب اسمك والرمز الخاص بك</p>
+      <label for="studentNameInput">اسم الطالب</label>
+      <input id="studentNameInput" class="name-input" type="text" autocomplete="off" maxlength="60" placeholder="اسم الطالب" required>
+      <label for="studentCodeInput">الرمز (4–8 أرقام)</label>
+      <input id="studentCodeInput" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="••••" required>
+      <p id="studentErr" class="login-err" hidden>الاسم أو الرمز غير صحيح، حاول مرة أخرى</p>
+      <button class="btn primary" type="submit">دخول</button>
+      <button class="linkbtn login-back" type="button">رجوع</button>
+    </form>
+  </div>
 </div>
 <div class="app" id="app" hidden>
   <header class="cover">
@@ -237,6 +265,20 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
       <p class="muted small">لتصحيح كتاب خاطئ، عدّله مباشرة في ملف Google Sheets.</p>
     </div>
 
+    <div class="card">
+      <h2>الطلاب</h2>
+      <p class="muted small">أضف حساباً لكل طالب: الاسم + رمز (4–8 أرقام). الطالب يدخل باسمه ورمزه ويبحث عن الكتب فقط.</p>
+      <form id="studentAddForm" novalidate>
+        <label for="stName">اسم الطالب</label>
+        <input id="stName" type="text" autocomplete="off" maxlength="60" placeholder="اسم الطالب">
+        <label for="stCode">الرمز (4–8 أرقام)</label>
+        <input id="stCode" type="text" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="مثال: 1234">
+        <div class="actions"><button class="btn primary" type="submit">إضافة الطالب</button></div>
+      </form>
+      <p id="stMsg" class="small muted" role="status"></p>
+      <div id="studentList"></div>
+    </div>
+
     <details class="card" id="cfgBox">
       <summary>إعدادات ربط Google Sheets</summary>
       <div class="card-body">
@@ -252,7 +294,37 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
       </div>
     </details>
   </section>
+  <footer class="social-footer">
+    <p class="social-tag">رفوف حذيفة — مكتبة مدرسة حذيفة بن محصن، حيث يلتقي الطالب بالكتاب، فالقراءة تفتح العقول وتصنع المستقبل.</p>
+    <div class="social-btns">
+      <a class="social-btn" href="https://www.instagram.com/edugovbur7125" target="_blank" rel="noopener" aria-label="انستقرام المدرسة"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/></svg><span>انستقرام</span></a>
+      <a class="social-btn" href="https://x.com/edugovbur7125" target="_blank" rel="noopener" aria-label="حساب المدرسة على X"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span>X</span></a>
+    </div>
+  </footer>
   <footer class="credit">إعداد: أ. أحمد النعيمي<br><button id="logoutBtn" class="logout" type="button">تسجيل الخروج</button></footer>
+</div>
+<div class="app" id="studentApp" hidden>
+  <header class="cover">
+    <svg class="logo" viewBox="0 0 96 96" role="img" aria-label="شعار رفوف حذيفة"><rect x="4" y="4" width="88" height="88" rx="22" fill="#D97706"/><rect x="26" y="40" width="11" height="24" rx="2" fill="#1E293B"/><rect x="39" y="33" width="11" height="31" rx="2" fill="#FFFDF9"/><rect x="42" y="33" width="5" height="10" rx="1" fill="#D97706"/><rect x="52" y="44" width="11" height="20" rx="2" fill="#334155"/><rect x="65" y="38" width="11" height="26" rx="2" fill="#1E293B"/><rect x="22" y="64" width="52" height="6" rx="3" fill="#1E293B"/></svg>
+    <p class="ministry">وزارة التعليم</p>
+    <h1>رفوف حذيفة</h1>
+    <p class="subtitle">مكتبة مدرسة حذيفة بن محصن — بحث الطالب</p>
+  </header>
+  <section class="card">
+    <p class="muted small">أهلاً <b id="studentName"></b> — ابحث عن كتاب بالعنوان أو اسم المؤلف.</p>
+    <label for="studentSearch">ابحث عن كتاب</label>
+    <input id="studentSearch" type="text" autocomplete="off" placeholder="مثال: رجال تحت الشمس">
+    <p id="studentHint" class="muted small">اكتب عنوان الكتاب أو اسم المؤلف.</p>
+    <div id="studentResults"></div>
+  </section>
+  <footer class="social-footer">
+    <p class="social-tag">رفوف حذيفة — مكتبة مدرسة حذيفة بن محصن، حيث يلتقي الطالب بالكتاب، فالقراءة تفتح العقول وتصنع المستقبل.</p>
+    <div class="social-btns">
+      <a class="social-btn" href="https://www.instagram.com/edugovbur7125" target="_blank" rel="noopener" aria-label="انستقرام المدرسة"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/></svg><span>انستقرام</span></a>
+      <a class="social-btn" href="https://x.com/edugovbur7125" target="_blank" rel="noopener" aria-label="حساب المدرسة على X"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span>X</span></a>
+    </div>
+  </footer>
+  <footer class="credit">إعداد: أ. أحمد النعيمي<br><button id="studentLogoutBtn" class="logout" type="button">تسجيل الخروج</button></footer>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>
 
@@ -262,7 +334,25 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
   var CODE_HASH = "4f9f10b304cfe9b2b11fcb1387f694e18f08ea358c7e9f567434d3ad6cbd7fc4";
   var gate = document.getElementById("loginGate");
   var app = document.getElementById("app");
+  var studentApp = document.getElementById("studentApp");
   function unlock() { gate.hidden = true; app.hidden = false; }
+  function unlockStudent(name) {
+    sessionStorage.setItem("lib-student", name);
+    gate.hidden = true; app.hidden = true; studentApp.hidden = false;
+    document.getElementById("studentName").textContent = name;
+    loadStudentBooks();
+  }
+  function showLogin(which) {
+    document.getElementById("loginChoice").hidden = which !== "choice";
+    document.getElementById("loginForm").hidden = which !== "teacher";
+    document.getElementById("studentForm").hidden = which !== "student";
+  }
+  document.getElementById("toTeacherBtn").addEventListener("click", function () { showLogin("teacher"); });
+  document.getElementById("toStudentBtn").addEventListener("click", function () { showLogin("student"); });
+  Array.prototype.forEach.call(document.querySelectorAll(".login-back"), function (b) {
+    b.addEventListener("click", function () { showLogin("choice"); });
+  });
+  var savedStudent = sessionStorage.getItem("lib-student");
   if (sessionStorage.getItem("lib-auth") === "1") { unlock(); }
   function hex(buf) { return Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join(""); }
   document.getElementById("loginForm").addEventListener("submit", function (e) {
@@ -471,7 +561,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     if (!scan && typeof stopScan === "function") stopScan();
     $("viewScan").hidden = !scan; $("viewList").hidden = scan;
     $("tabScan").setAttribute("aria-pressed", String(scan)); $("tabList").setAttribute("aria-pressed", String(!scan));
-    if (!scan) renderList();
+    if (!scan) { renderList(); loadStudents(); }
   }
   $("tabScan").addEventListener("click", function () { showTab(true); });
   $("tabList").addEventListener("click", function () { showTab(false); });
@@ -869,8 +959,87 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     flush();
   });
 
+  /* ---------- دخول الطالب (بحث فقط) ---------- */
+  $("studentForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var name = $("studentNameInput").value.trim();
+    var code = $("studentCodeInput").value.trim();
+    var err = $("studentErr");
+    if (!name || !/^\d{4,8}$/.test(code)) { err.textContent = "اكتب الاسم والرمز (4–8 أرقام)"; err.hidden = false; return; }
+    err.hidden = true;
+    try {
+      await api("POST", { action: "studentLogin", name: name, code: code });
+      unlockStudent(name);
+    } catch (e2) { err.textContent = "الاسم أو الرمز غير صحيح، حاول مرة أخرى"; err.hidden = false; $("studentCodeInput").value = ""; $("studentCodeInput").focus(); }
+  });
+  $("studentLogoutBtn").addEventListener("click", function () { sessionStorage.removeItem("lib-student"); location.reload(); });
+  async function loadStudentBooks() {
+    try {
+      var j = await api("GET");
+      data.remote = j.books; store();
+      renderStudentResults();
+    } catch (e) { $("studentHint").textContent = "تعذّر تحميل قائمة الكتب. تأكد من الإنترنت وحاول مرة ثانية."; }
+  }
+  function renderStudentResults() {
+    var q = norm($("studentSearch").value);
+    var box = $("studentResults"); box.replaceChildren();
+    var hint = $("studentHint");
+    if (q.length < 2) { hint.textContent = "اكتب عنوان الكتاب أو اسم المؤلف."; return; }
+    var hits = allBooks().filter(function (b) { return norm(b.title).indexOf(q) >= 0 || norm(b.author).indexOf(q) >= 0; }).slice(0, 20);
+    if (!hits.length) { hint.textContent = "الكتاب غير موجود في المكتبة حالياً."; return; }
+    hint.textContent = "وجدنا " + hits.length + " كتاب:";
+    hits.forEach(function (b) {
+      var row = el("div", "row");
+      row.appendChild(el("strong", null, b.title || "(بدون عنوان)"));
+      row.appendChild(el("span", null, [b.cat, b.author, b.shelf ? "الرف " + b.shelf : "الرف غير محدد"].filter(Boolean).join(" · ")));
+      box.appendChild(row);
+    });
+  }
+  $("studentSearch").addEventListener("input", renderStudentResults);
+
+  /* ---------- إدارة الطلاب (المعلم) ---------- */
+  async function loadStudents() {
+    var box = $("studentList");
+    if (!box) return;
+    try {
+      var j = await api("POST", { action: "listStudents" });
+      box.replaceChildren();
+      if (!j.students || !j.students.length) { box.appendChild(el("p", "muted small", "ما فيه طلاب مضافين بعد.")); return; }
+      j.students.forEach(function (s) {
+        var row = el("div", "row");
+        row.appendChild(el("strong", null, s.name));
+        row.appendChild(el("span", null, "الرمز: " + s.code));
+        var del = el("button", "btn", "حذف"); del.type = "button";
+        del.style.minHeight = "38px"; del.style.padding = "0 12px";
+        del.addEventListener("click", async function () {
+          if (!confirm("حذف الطالب " + s.name + "؟")) return;
+          try { await api("POST", { action: "delStudent", name: s.name }); loadStudents(); toast("تم حذف الطالب"); }
+          catch (e) { toast("تعذّر الحذف"); }
+        });
+        row.appendChild(del);
+        box.appendChild(row);
+      });
+    } catch (e) { box.replaceChildren(); box.appendChild(el("p", "muted small", "تعذّر تحميل قائمة الطلاب.")); }
+  }
+  $("studentAddForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var name = $("stName").value.trim();
+    var code = $("stCode").value.trim();
+    var msg = $("stMsg");
+    if (!name || !/^\d{4,8}$/.test(code)) { msg.textContent = "اكتب اسم الطالب والرمز (4–8 أرقام)."; return; }
+    try {
+      await api("POST", { action: "addStudent", name: name, code: code });
+      $("stName").value = ""; $("stCode").value = "";
+      msg.textContent = "تمت إضافة الطالب " + name + ".";
+      loadStudents(); toast("تمت إضافة الطالب");
+    } catch (e2) {
+      msg.textContent = (e2 && e2.code === "exists") ? "هذا الاسم موجود من قبل." : "تعذّرت الإضافة. تأكد من الاتصال بالشيت.";
+    }
+  });
+
   store(); renderAll();
   if (linked()) { sync().then(flush); }
+  if (savedStudent && !gate.hidden) { unlockStudent(savedStudent); }
 })();
 </script>
 </body>
