@@ -124,6 +124,9 @@ legend { font-size: 14px; color: var(--muted); font-weight: 500; padding: 0; mar
 .book .b-desc { font-size: 14px; color: var(--muted); line-height: 1.7; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .book .b-desc.open { display: block; }
 .book .b-price { font-weight: 700; color: var(--accent-2); font-size: 15px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
+.chip { border: 1px solid var(--accent); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 8px 14px; font-size: 14px; min-height: 38px; cursor: pointer; font-family: inherit; }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
 .row:first-child { border-top: 0; }
 .row strong { display: block; overflow-wrap: anywhere; }
 .row span { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
@@ -334,6 +337,15 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     <label for="worldSearch">ابحث عن كتاب</label>
     <input id="worldSearch" type="text" autocomplete="off" placeholder="مثال: Harry Potter">
     <div class="actions"><button id="worldSearchBtn" class="btn primary" type="button">ابحث</button></div>
+    <p class="muted small" style="margin-top:14px">أو تصفح حسب التصنيف:</p>
+    <div class="chips" id="worldChips">
+      <button type="button" class="chip" data-cat="bestsellers" aria-pressed="false">الأكثر مبيعاً</button>
+      <button type="button" class="chip" data-cat="scifi" aria-pressed="false">خيال علمي</button>
+      <button type="button" class="chip" data-cat="english" aria-pressed="false">روايات إنجليزية</button>
+      <button type="button" class="chip" data-cat="arabic" aria-pressed="false">روايات عربية</button>
+      <button type="button" class="chip" data-cat="literary" aria-pressed="false">روايات أدبية</button>
+      <button type="button" class="chip" data-cat="biography" aria-pressed="false">سيرة ذاتية</button>
+    </div>
     <p id="worldHint" class="muted small" role="status">اكتب عنوان الكتاب أو اسم المؤلف ثم اضغط ابحث.</p>
     <div id="worldResults"></div>
   </section>
@@ -1021,17 +1033,33 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
   }
   $("tabSchool").addEventListener("click", function () { showWorldTab(false); });
   $("tabWorld").addEventListener("click", function () { showWorldTab(true); });
-  $("worldSearchBtn").addEventListener("click", searchWorld);
+  $("worldSearchBtn").addEventListener("click", function () { searchWorld(); });
   $("worldSearch").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); searchWorld(); } });
+  var WORLD_CATS = {
+    bestsellers: { label: "الأكثر مبيعاً", q: "subject:fiction", orderBy: "relevance" },
+    scifi: { label: "خيال علمي", q: "subject:\"science fiction\"" },
+    english: { label: "روايات إنجليزية", q: "subject:fiction", lang: "en" },
+    arabic: { label: "روايات عربية", q: "رواية", lang: "ar" },
+    literary: { label: "روايات أدبية", q: "subject:\"literary fiction\"" },
+    biography: { label: "سيرة ذاتية", q: "subject:biography" }
+  };
+  document.querySelectorAll("#worldChips .chip").forEach(function (c) {
+    c.addEventListener("click", function () { searchWorld(c.dataset.cat); });
+  });
   function stripHtml(s) { var d = document.createElement("div"); d.innerHTML = s || ""; return (d.textContent || "").trim(); }
-  async function searchWorld() {
-    var q = $("worldSearch").value.trim();
+  async function searchWorld(catKey) {
+    var cat = catKey ? WORLD_CATS[catKey] : null;
+    var q = cat ? cat.q : $("worldSearch").value.trim();
     var box = $("worldResults"); var hint = $("worldHint");
-    if (q.length < 2) { hint.textContent = "اكتب عنوان الكتاب أو اسم المؤلف ثم اضغط ابحث."; return; }
+    if (!cat && q.length < 2) { hint.textContent = "اكتب عنوان الكتاب أو اسم المؤلف ثم اضغط ابحث."; return; }
+    if (cat) $("worldSearch").value = cat.label;
     hint.textContent = "جاري البحث في المكتبة الرقمية…";
     box.replaceChildren();
+    document.querySelectorAll("#worldChips .chip").forEach(function (c) { c.setAttribute("aria-pressed", String(!!cat && c.dataset.cat === catKey)); });
     try {
       var url = "https://www.googleapis.com/books/v1/volumes?q=" + encodeURIComponent(q) + "&maxResults=10&printType=books";
+      if (cat && cat.lang) url += "&langRestrict=" + cat.lang;
+      if (cat && cat.orderBy) url += "&orderBy=" + cat.orderBy;
       if (GOOGLE_BOOKS_KEY) url += "&key=" + GOOGLE_BOOKS_KEY;
       var res = await fetch(url);
       if (!res.ok) throw { code: res.status };
