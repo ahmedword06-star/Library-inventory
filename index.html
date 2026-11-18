@@ -31,7 +31,7 @@ body { margin: 0; background-color: var(--bg); background-image: radial-gradient
 .cover h1 { font-size: 32px; color: #FFFFFF; letter-spacing: .5px; }
 .cover .subtitle { font-size: 15px; color: #CBD5E1; font-weight: 600; margin: 0; }
 .credit { text-align: center; color: var(--muted); font-size: 14px; font-weight: 600; padding: 6px 0 2px; }
-.login-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50; }
+.login-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50; overflow-y: auto; }
 .login-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px 20px; max-width: 360px; width: 100%; display: flex; flex-direction: column; gap: 10px; text-align: center; box-shadow: 0 8px 24px rgba(30,41,59,.12); }
 .login-card .logo { width: 64px; height: 64px; margin-inline: auto; }
 .login-card .ministry { font-size: 13px; color: var(--accent-2); font-weight: 700; margin: 0; letter-spacing: 1px; }
@@ -43,7 +43,7 @@ body { margin: 0; background-color: var(--bg); background-image: radial-gradient
 .login-choice .btn.ghost { background: var(--surface); color: var(--navy); border: 2px solid var(--navy); font-weight: 700; }
 .login-card form { display: flex; flex-direction: column; gap: 10px; }
 .login-card input.name-input { letter-spacing: normal; font-size: 16px; text-align: right; }
-.social-footer { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center; box-shadow: 0 1px 4px rgba(30,41,59,.06); }
+.cover-social { display: flex; flex-direction: column; gap: 10px; align-items: center; text-align: center; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 4px; }
 .social-tag { font-size: 14px; color: var(--muted); font-weight: 600; line-height: 1.7; margin: 0; }
 .social-btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .social-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 16px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font-weight: 700; font-size: 15px; text-decoration: none; }
@@ -157,6 +157,13 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
       <button class="btn primary" type="submit">دخول</button>
       <button class="linkbtn login-back" type="button">رجوع</button>
     </form>
+    <div class="cover-social">
+      <div class="social-btns">
+        <a class="social-btn" href="https://www.instagram.com/edugovbur7125" target="_blank" rel="noopener" aria-label="انستقرام المدرسة"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/></svg><span>انستقرام</span></a>
+        <a class="social-btn" href="https://x.com/edugovbur7125" target="_blank" rel="noopener" aria-label="حساب المدرسة على X"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span>X</span></a>
+      </div>
+      <p class="social-tag">رفوف حذيفة — مكتبة مدرسة حذيفة بن محصن، حيث يلتقي الطالب بالكتاب، فالقراءة تفتح العقول وتصنع المستقبل.</p>
+    </div>
   </div>
 </div>
 <div class="app" id="app" hidden>
@@ -294,13 +301,6 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
       </div>
     </details>
   </section>
-  <footer class="social-footer">
-    <p class="social-tag">رفوف حذيفة — مكتبة مدرسة حذيفة بن محصن، حيث يلتقي الطالب بالكتاب، فالقراءة تفتح العقول وتصنع المستقبل.</p>
-    <div class="social-btns">
-      <a class="social-btn" href="https://www.instagram.com/edugovbur7125" target="_blank" rel="noopener" aria-label="انستقرام المدرسة"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/></svg><span>انستقرام</span></a>
-      <a class="social-btn" href="https://x.com/edugovbur7125" target="_blank" rel="noopener" aria-label="حساب المدرسة على X"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span>X</span></a>
-    </div>
-  </footer>
   <footer class="credit">إعداد: أ. أحمد النعيمي<br><button id="logoutBtn" class="logout" type="button">تسجيل الخروج</button></footer>
 </div>
 <div class="app" id="studentApp" hidden>
@@ -317,13 +317,6 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     <p id="studentHint" class="muted small">اكتب عنوان الكتاب أو اسم المؤلف.</p>
     <div id="studentResults"></div>
   </section>
-  <footer class="social-footer">
-    <p class="social-tag">رفوف حذيفة — مكتبة مدرسة حذيفة بن محصن، حيث يلتقي الطالب بالكتاب، فالقراءة تفتح العقول وتصنع المستقبل.</p>
-    <div class="social-btns">
-      <a class="social-btn" href="https://www.instagram.com/edugovbur7125" target="_blank" rel="noopener" aria-label="انستقرام المدرسة"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/></svg><span>انستقرام</span></a>
-      <a class="social-btn" href="https://x.com/edugovbur7125" target="_blank" rel="noopener" aria-label="حساب المدرسة على X"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span>X</span></a>
-    </div>
-  </footer>
   <footer class="credit">إعداد: أ. أحمد النعيمي<br><button id="studentLogoutBtn" class="logout" type="button">تسجيل الخروج</button></footer>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>
