@@ -128,6 +128,7 @@ legend { font-size: 14px; color: var(--muted); font-weight: 500; padding: 0; mar
 .chip { border: 1px solid var(--accent); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 8px 14px; font-size: 14px; min-height: 38px; cursor: pointer; font-family: inherit; }
 .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
 .lang-switch { margin-bottom: 12px; }
+#borrowFormCard { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
 .shelf { margin-top: 20px; }
 .shelf-title { font-size: 17px; margin: 0 0 10px; }
 .shelf-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
@@ -306,6 +307,12 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
       <div id="studentList"></div>
     </div>
 
+    <div class="card">
+      <h2 id="borrowTitle">طلبات الاستعارة</h2>
+      <p class="muted small">طلبات الطلاب لاستعارة الكتب — راجعها وحدّث حالتها (جديد ← تم التسليم ← تم الإرجاع).</p>
+      <div id="borrowList"></div>
+    </div>
+
     <details class="card" id="cfgBox">
       <summary>إعدادات ربط Google Sheets</summary>
       <div class="card-body">
@@ -340,6 +347,27 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     <input id="studentSearch" type="text" autocomplete="off" placeholder="مثال: رجال تحت الشمس">
     <p id="studentHint" class="muted small">اكتب عنوان الكتاب أو اسم المؤلف.</p>
     <div id="studentResults"></div>
+    <div id="borrowFormCard" hidden>
+      <h2>طلب استعارة كتاب</h2>
+      <p class="muted small" id="borrowBookLine"></p>
+      <form id="borrowForm" novalidate>
+        <label for="borrowName">اسم الطالب</label>
+        <input id="borrowName" type="text" autocomplete="off" maxlength="60">
+        <label for="borrowClass">الصف</label>
+        <input id="borrowClass" type="text" autocomplete="off" maxlength="20" placeholder="مثال: 5/2">
+        <label for="borrowDur">مدة الاستعارة</label>
+        <select id="borrowDur">
+          <option value="أسبوع">أسبوع</option>
+          <option value="أسبوعان">أسبوعان</option>
+          <option value="شهر">شهر</option>
+        </select>
+        <div class="actions">
+          <button class="btn primary" type="submit">إرسال الطلب</button>
+          <button class="btn" type="button" id="borrowCancel">إلغاء</button>
+        </div>
+      </form>
+      <p id="borrowMsg" class="small muted" role="status"></p>
+    </div>
   </section>
   <section class="card" id="viewWorld" hidden>
     <p class="muted small">ابحث في مكتبة قوقل الرقمية — ملايين الكتب من كل العالم.</p>
@@ -383,7 +411,6 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
   // دخول المعلمين: الرمز نفسه غير مكتوب في الملف أبداً، مخزّن فقط بصمته (SHA-256)
   var CODE_HASH = "4f9f10b304cfe9b2b11fcb1387f694e18f08ea358c7e9f567434d3ad6cbd7fc4";
   // مفتاح Google Books المجاني (مشروع Rufuf Library): يرفع حدّ البحث الرقمي اليومي. مقيّد لموقع المدرسة فقط.
-  var GOOGLE_BOOKS_KEY = "AIzaSyAUHagzXmDljZHcYbyflSG_jhYknZpeIyw";
   var gate = document.getElementById("loginGate");
   var app = document.getElementById("app");
   var studentApp = document.getElementById("studentApp");
@@ -613,7 +640,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     if (!scan && typeof stopScan === "function") stopScan();
     $("viewScan").hidden = !scan; $("viewList").hidden = scan;
     $("tabScan").setAttribute("aria-pressed", String(scan)); $("tabList").setAttribute("aria-pressed", String(!scan));
-    if (!scan) { renderList(); loadStudents(); }
+    if (!scan) { renderList(); loadStudents(); loadBorrows(); }
   }
   $("tabScan").addEventListener("click", function () { showTab(true); });
   $("tabList").addEventListener("click", function () { showTab(false); });
@@ -1044,10 +1071,43 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
       var row = el("div", "row");
       row.appendChild(el("strong", null, b.title || "(بدون عنوان)"));
       row.appendChild(el("span", null, [b.cat, b.author, b.shelf ? "الرف " + b.shelf : "الرف غير محدد"].filter(Boolean).join(" · ")));
+      var borrowBtn = el("button", "btn", "طلب استعارة"); borrowBtn.type = "button";
+      borrowBtn.style.minHeight = "38px"; borrowBtn.style.padding = "0 12px"; borrowBtn.style.marginTop = "6px";
+      borrowBtn.addEventListener("click", function () { openBorrowForm(b); });
+      row.appendChild(borrowBtn);
       box.appendChild(row);
     });
   }
   $("studentSearch").addEventListener("input", renderStudentResults);
+
+  /* ---------- طلب استعارة كتاب (الطالب) ---------- */
+  var borrowBook = null;
+  function openBorrowForm(b) {
+    borrowBook = b;
+    $("borrowBookLine").textContent = "الكتاب: " + (b.title || "") + (b.author ? " — " + b.author : "");
+    $("borrowName").value = sessionStorage.getItem("lib-student") || "";
+    $("borrowClass").value = "";
+    $("borrowMsg").textContent = "";
+    $("borrowFormCard").hidden = false;
+    $("borrowFormCard").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    $("borrowClass").focus();
+  }
+  $("borrowCancel").addEventListener("click", function () { $("borrowFormCard").hidden = true; borrowBook = null; });
+  $("borrowForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var name = $("borrowName").value.trim();
+    var grade = $("borrowClass").value.trim();
+    var dur = $("borrowDur").value;
+    var msg = $("borrowMsg");
+    if (!borrowBook) { msg.textContent = "اختر كتاباً أولاً."; return; }
+    if (!name || !grade) { msg.textContent = "اكتب اسمك وصفّك."; return; }
+    try {
+      await api("POST", { action: "borrowRequest", student: name, grade: grade, duration: dur, title: borrowBook.title || "", author: borrowBook.author || "", shelf: borrowBook.shelf || "" });
+      msg.textContent = "تم إرسال طلب الاستعارة. المعلم سيراجعه.";
+      toast("تم إرسال طلب الاستعارة");
+      $("borrowFormCard").hidden = true; borrowBook = null;
+    } catch (err) { msg.textContent = "تعذّر إرسال الطلب. تأكد من الإنترنت وحاول مرة ثانية."; }
+  });
 
   /* ---------- المكتبة الرقمية (Google Books) ---------- */
   function showWorldTab(world) {
@@ -1115,14 +1175,10 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
       else { q = cat.q; lang = "en"; start = cat.start || 0; }
       orderBy = cat.orderBy || null;
     } else q = typedQ;
-    var url = "https://www.googleapis.com/books/v1/volumes?q=" + encodeURIComponent(q) + "&maxResults=10&printType=books";
-    if (lang) url += "&langRestrict=" + lang;
-    if (orderBy) url += "&orderBy=" + orderBy;
-    if (start) url += "&startIndex=" + start;
-    if (GOOGLE_BOOKS_KEY) url += "&key=" + GOOGLE_BOOKS_KEY;
-    var res = await fetch(url);
+    var res = await fetch(cfg.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ token: cfg.token, action: "booksSearch", q: q, lang: lang, orderBy: orderBy, start: start }) });
     if (!res.ok) throw { code: res.status };
     var d = await res.json();
+    if (!d.ok) { var m = /books-(\d+)/.exec(d.error || ""); throw { code: m ? +m[1] : 0 }; }
     return d.items || [];
   }
   async function searchWorld(catKey) {
@@ -1292,6 +1348,45 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
       msg.textContent = (e2 && e2.code === "exists") ? "هذا الاسم موجود من قبل." : "تعذّرت الإضافة. تأكد من الاتصال بالشيت.";
     }
   });
+
+  /* ---------- طلبات الاستعارة (المعلم) ---------- */
+  async function loadBorrows() {
+    var box = $("borrowList");
+    if (!box) return;
+    try {
+      var j = await api("POST", { action: "listBorrows" });
+      var news = (j.borrows || []).filter(function (br) { return br.status === "جديد"; }).length;
+      $("borrowTitle").textContent = "طلبات الاستعارة" + (news ? " (" + news + " جديدة)" : "");
+      box.replaceChildren();
+      if (!j.borrows || !j.borrows.length) { box.appendChild(el("p", "muted small", "ما فيه طلبات استعارة بعد.")); return; }
+      j.borrows.forEach(function (br) {
+        var row = el("div", "row");
+        row.appendChild(el("strong", null, br.title || "(بدون عنوان)"));
+        var dateStr = br.date ? new Date(br.date).toLocaleDateString("ar", { day: "numeric", month: "numeric" }) : "";
+        row.appendChild(el("span", null, [br.student, br.grade ? "الصف " + br.grade : "", br.author, br.shelf ? "الرف " + br.shelf : "", br.duration ? "المدة: " + br.duration : "", dateStr, "الحالة: " + (br.status || "جديد")].filter(Boolean).join(" · ")));
+        var acts = el("div", "actions");
+        if (br.status === "جديد") {
+          var okBtn = el("button", "btn primary", "تم التسليم"); okBtn.type = "button";
+          okBtn.addEventListener("click", async function () { try { await api("POST", { action: "setBorrowStatus", id: br.id, status: "مُسلَّم" }); await loadBorrows(); toast("تم تحديث الحالة"); } catch (e) { toast("تعذّر التحديث"); } });
+          acts.appendChild(okBtn);
+        } else if (br.status === "مُسلَّم") {
+          var backBtn = el("button", "btn primary", "تم الإرجاع"); backBtn.type = "button";
+          backBtn.addEventListener("click", async function () { try { await api("POST", { action: "setBorrowStatus", id: br.id, status: "مُرجَع" }); await loadBorrows(); toast("تم تحديث الحالة"); } catch (e) { toast("تعذّر التحديث"); } });
+          acts.appendChild(backBtn);
+        }
+        var del = el("button", "btn", "حذف"); del.type = "button";
+        del.addEventListener("click", async function () {
+          if (!del.dataset.armed) { del.dataset.armed = "1"; del.textContent = "تأكيد الحذف؟"; setTimeout(function () { if (del.isConnected) { delete del.dataset.armed; del.textContent = "حذف"; } }, 4000); return; }
+          del.disabled = true;
+          try { await api("POST", { action: "delBorrow", id: br.id }); await loadBorrows(); toast("تم حذف الطلب"); }
+          catch (e) { toast("تعذّر الحذف"); }
+        });
+        acts.appendChild(del);
+        row.appendChild(acts);
+        box.appendChild(row);
+      });
+    } catch (e) { box.replaceChildren(); box.appendChild(el("p", "muted small", "تعذّر تحميل طلبات الاستعارة.")); }
+  }
 
   store(); renderAll();
   if (linked()) { sync().then(flush); }
