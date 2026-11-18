@@ -518,17 +518,30 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
   var flushing = false, linkState = "";
   async function api(method, body) {
     var res;
-    if (method === "GET") {
-      res = await fetch(cfg.url + (cfg.url.indexOf("?") >= 0 ? "&" : "?") + "token=" + encodeURIComponent(cfg.token) + "&_=" + Date.now());
-    } else {
-      var payload = Object.assign({ token: cfg.token }, body);
-      var tc = sessionStorage.getItem("lib-teacher-code");
-      if (tc) payload.teacherCode = tc;
-      res = await fetch(cfg.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
+    var ctl = new AbortController();
+    var to = setTimeout(function () { ctl.abort(); }, 25000);
+    try {
+      if (method === "GET") {
+        res = await fetch(cfg.url + (cfg.url.indexOf("?") >= 0 ? "&" : "?") + "token=" + encodeURIComponent(cfg.token) + "&_=" + Date.now(), { signal: ctl.signal });
+      } else {
+        var payload = Object.assign({ token: cfg.token }, body);
+        var tc = sessionStorage.getItem("lib-teacher-code");
+        if (tc) payload.teacherCode = tc;
+        res = await fetch(cfg.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload), signal: ctl.signal });
+      }
+    } catch (e) {
+      clearTimeout(to);
+      throw { code: (e && e.name === "AbortError") ? "timeout" : "http", detail: String((e && e.message) || e) };
     }
-    if (!res.ok) throw { code: "http" };
-    var j = await res.json();
-    if (!j.ok) throw { code: j.error || "fail" };
+    clearTimeout(to);
+    if (!res.ok) {
+      var txt = "";
+      try { txt = (await res.text()).slice(0, 200); } catch (e2) {}
+      throw { code: "http", detail: "HTTP " + res.status + " " + txt };
+    }
+    var j;
+    try { j = await res.json(); } catch (e3) { throw { code: "json", detail: String(e3 && e3.message) }; }
+    if (!j.ok) throw { code: j.error || "fail", detail: JSON.stringify(j).slice(0, 200) };
     return j;
   }
   /* ---------- القراءة الذكية عبر السيرفر (Gemini ثم OCR.space) ---------- */
@@ -613,16 +626,27 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
   async function flush() {
     if (flushing || !data.pending.length || !linked()) return;
     flushing = true; renderLink();
-    var batch = data.pending.slice(0, 50);
+    var lastErr = null, sent = 0;
     try {
-      await api("POST", { items: batch });
-      var ids = {}; batch.forEach(function (b) { ids[b.id] = 1; });
-      data.pending = data.pending.filter(function (b) { return !ids[b.id]; });
-      data.remote = data.remote.concat(batch);
-      linkState = "ok"; flushing = false; store(); renderAll();
-      if (data.pending.length) flush();
-    } catch (e) {
-      flushing = false; linkState = e && e.code === "token" ? "token" : "bad"; renderLink();
+      var queue = data.pending.slice();
+      for (var i = 0; i < queue.length; i++) {
+        var b = queue[i];
+        try {
+          await api("POST", { items: [b] });
+          data.pending = data.pending.filter(function (x) { return x.id !== b.id; });
+          data.remote.push(b);
+          sent++;
+        } catch (e) {
+          lastErr = { id: b.id, title: b.title, code: e && e.code, detail: (e && e.detail) || "" };
+          if (e && e.code === "token") break; // الرمز خاطئ: لا فائدة من تجربة الباقي
+        }
+      }
+      linkState = !lastErr ? "ok" : (lastErr.code === "token" ? "token" : "bad");
+      try { localStorage.setItem("lib-last-flush", JSON.stringify({ time: Date.now(), sent: sent, failed: lastErr })); } catch (e2) {}
+      store(); renderAll();
+      if (data.pending.length && !lastErr) flush();
+    } finally {
+      flushing = false; renderLink();
     }
   }
   window.addEventListener("online", function () { flush(); });
@@ -632,7 +656,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     if (!linked()) { txt.textContent = "غير مربوط بالشيت. الحفظ في هذا الجهاز فقط. اربطه من تبويب الإعدادات."; return; }
     var p = data.pending.length;
     if (linkState === "token") { dot.classList.add("bad"); txt.textContent = "الرمز السري غير صحيح. راجع الإعدادات."; }
-    else if (linkState === "bad" || p) { dot.classList.add(linkState === "bad" ? "bad" : ""); txt.textContent = (flushing ? "جاري الإرسال… " : "بانتظار الإرسال: ") + p + " كتاب" + (linkState === "bad" ? " (لا يوجد اتصال، سيُعاد الإرسال تلقائياً)" : ""); }
+    else if (linkState === "bad" || p) { dot.classList.add(linkState === "bad" ? "bad" : ""); var lf = null; try { lf = JSON.parse(localStorage.getItem("lib-last-flush") || "null"); } catch (e) {} var errTxt = (linkState === "bad" && lf && lf.failed) ? " — خطأ: " + (lf.failed.code || "") + " " + (lf.failed.detail || "") : (linkState === "bad" ? " (لا يوجد اتصال، سيُعاد الإرسال تلقائياً)" : ""); txt.textContent = (flushing ? "جاري الإرسال… " : "بانتظار الإرسال: ") + p + " كتاب" + errTxt; }
     else { dot.classList.add("ok"); txt.textContent = "متصل بالشيت. كل الكتب محفوظة."; }
   }
 
