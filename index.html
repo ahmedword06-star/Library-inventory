@@ -278,6 +278,11 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
   /* ---------- storage ---------- */
   function read(key) { try { return JSON.parse(localStorage.getItem(key)) || {}; } catch (e) { return {}; } }
   var cfg = read(CFG_KEY);
+  // الربط الافتراضي بالشيت (يُملأ برابط تطبيق الويب والرمز بعد النشر)
+  var DEFAULT_URL = "";
+  var DEFAULT_TOKEN = "";
+  if (!cfg.url && DEFAULT_URL) cfg.url = DEFAULT_URL;
+  if (!cfg.token && DEFAULT_TOKEN) cfg.token = DEFAULT_TOKEN;
   if (!cfg.device) cfg.device = "جهاز-" + Math.random().toString(36).slice(2, 5);
   var saved = read(DATA_KEY);
   var data = {
@@ -397,12 +402,35 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
   if (window.Tesseract) { getWorker().catch(function () {}); } // يحمّل ملف اللغة من البداية
 
   async function prep(file) {
-    var bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
-    var sc = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
-    var cv = document.createElement("canvas"); cv.width = Math.round(bmp.width * sc); cv.height = Math.round(bmp.height * sc);
-    var ctx = cv.getContext("2d"); try { ctx.filter = "grayscale(1) contrast(1.3)"; } catch (e) {}
-    ctx.drawImage(bmp, 0, 0, cv.width, cv.height); if (bmp.close) bmp.close();
-    return cv;
+    function makeCanvas(w, h) {
+      var sc = Math.min(1, 1600 / Math.max(w, h));
+      var cv = document.createElement("canvas");
+      cv.width = Math.round(w * sc); cv.height = Math.round(h * sc);
+      var ctx = cv.getContext("2d");
+      try { ctx.filter = "grayscale(1) contrast(1.3)"; } catch (e) {}
+      return { cv: cv, ctx: ctx };
+    }
+    try {
+      var bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+      var c = makeCanvas(bmp.width, bmp.height);
+      c.ctx.drawImage(bmp, 0, 0, c.cv.width, c.cv.height);
+      if (bmp.close) bmp.close();
+      return c.cv;
+    } catch (e) {
+      // بديل للهواتف القديمة التي لا تدعم createImageBitmap: التحميل عبر <img>
+      var url = URL.createObjectURL(file);
+      try {
+        var img = await new Promise(function (res, rej) {
+          var im = new Image();
+          im.onload = function () { res(im); };
+          im.onerror = function () { rej(new Error("img")); };
+          im.src = url;
+        });
+        var c2 = makeCanvas(img.naturalWidth || img.width, img.naturalHeight || img.height);
+        c2.ctx.drawImage(img, 0, 0, c2.cv.width, c2.cv.height);
+        return c2.cv;
+      } finally { URL.revokeObjectURL(url); }
+    }
   }
 
   /* ---------- draft ---------- */
