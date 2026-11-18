@@ -353,6 +353,18 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
       <button type="button" class="chip" data-cat="arabic" aria-pressed="false">روايات عربية</button>
       <button type="button" class="chip" data-cat="literary" aria-pressed="false">روايات أدبية</button>
       <button type="button" class="chip" data-cat="biography" aria-pressed="false">سيرة ذاتية</button>
+      <button type="button" class="chip" data-cat="kids" aria-pressed="false">قصص أطفال</button>
+      <button type="button" class="chip" data-cat="fantasy" aria-pressed="false">فانتازيا</button>
+      <button type="button" class="chip" data-cat="adventure" aria-pressed="false">مغامرات</button>
+      <button type="button" class="chip" data-cat="mystery" aria-pressed="false">غموض وتشويق</button>
+      <button type="button" class="chip" data-cat="horror" aria-pressed="false">رعب</button>
+      <button type="button" class="chip" data-cat="poetry" aria-pressed="false">شعر</button>
+      <button type="button" class="chip" data-cat="history" aria-pressed="false">تاريخ</button>
+      <button type="button" class="chip" data-cat="science" aria-pressed="false">علوم</button>
+      <button type="button" class="chip" data-cat="selfhelp" aria-pressed="false">تطوير الذات</button>
+      <button type="button" class="chip" data-cat="islamic" aria-pressed="false">كتب إسلامية</button>
+      <button type="button" class="chip" data-cat="comics" aria-pressed="false">قصص مصورة</button>
+      <button type="button" class="chip" data-cat="classics" aria-pressed="false">كلاسيكيات</button>
     </div>
     <p id="worldHint" class="muted small" role="status">اكتب عنوان الكتاب أو اسم المؤلف ثم اضغط ابحث.</p>
     <div id="worldResults"></div>
@@ -1051,7 +1063,19 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     english: { label: "روايات إنجليزية", q: "subject:fiction", lang: "en" },
     arabic: { label: "روايات عربية", q: "رواية", lang: "ar" },
     literary: { label: "روايات أدبية", q: "subject:\"literary fiction\"" },
-    biography: { label: "سيرة ذاتية", q: "subject:biography" }
+    biography: { label: "سيرة ذاتية", q: "subject:biography" },
+    kids: { label: "قصص أطفال", q: "subject:\"juvenile fiction\"" },
+    fantasy: { label: "فانتازيا", q: "subject:fantasy" },
+    adventure: { label: "مغامرات", q: "subject:adventure" },
+    mystery: { label: "غموض وتشويق", q: "subject:mystery" },
+    horror: { label: "رعب", q: "subject:horror" },
+    poetry: { label: "شعر", q: "subject:poetry" },
+    history: { label: "تاريخ", q: "subject:history" },
+    science: { label: "علوم", q: "subject:science" },
+    selfhelp: { label: "تطوير الذات", q: "subject:self-help" },
+    islamic: { label: "كتب إسلامية", q: "subject:islam" },
+    comics: { label: "قصص مصورة", q: "subject:comics" },
+    classics: { label: "كلاسيكيات", q: "subject:classics" }
   };
   document.querySelectorAll("#worldChips .chip").forEach(function (c) {
     c.addEventListener("click", function () { searchWorld(c.dataset.cat); });
