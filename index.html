@@ -463,6 +463,46 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     } catch (e) { if (my === reqId) setStatus("warn", "تعذّرت القراءة. اكتب العنوان يدوياً."); }
   });
 
+  /* ---------- قراءة العنوان والمؤلف تلقائياً من الغلاف ---------- */
+  var AUTHOR_RE = /(تأليف|بقلم|المؤلف|الكاتب|إعداد|اعداد|ترجمة|ترجمه|تحقيق|تقديم|جمع|إشراف|اشراف)/;
+  var PUB_RE = /(دار|مكتبة|مكتبه|للنشر|والتوزيع|الطبعة|طبعة|سلسلة|سلسله|إصدار|اصدار|حقوق|ISBN|©)/;
+  var BY_RE = /^\s*(by|written by|author)\b/i;
+  function parseCover(lines) {
+    var author = "", authorIdx = -1, i, t, m, rest;
+    // 1) سطر فيه كلمة تدل على المؤلف (تأليف، بقلم، المؤلف...) أو by بالإنجليزي
+    for (i = 0; i < lines.length; i++) {
+      t = lines[i].t;
+      m = t.match(AUTHOR_RE);
+      if (m) {
+        rest = t.slice(m.index + m[0].length).replace(/^[:：\-–—\s]+/, "").trim();
+        if (rest.length >= 3) { author = rest; authorIdx = i; break; }
+        if (i + 1 < lines.length && !PUB_RE.test(lines[i + 1].t) && lines[i + 1].t.length >= 3) { author = lines[i + 1].t; authorIdx = i + 1; break; }
+      }
+      m = t.match(BY_RE);
+      if (m) {
+        rest = t.slice(m[0].length).replace(/^[:\-–—\s]+/, "").trim();
+        if (rest.length >= 3) { author = rest; authorIdx = i; break; }
+      }
+    }
+    // 2) العنوان: أكبر سطر أو سطرين في الغلاف، بدون سطر المؤلف
+    var maxH = Math.max.apply(null, lines.map(function (l) { return l.h; }));
+    var big = lines.filter(function (l, idx) { return idx !== authorIdx && maxH > 0 && l.h >= maxH * 0.72; }).slice(0, 3);
+    var title = big.map(function (l) { return l.t; }).join(" ");
+    // 3) إن لم نجد المؤلف بالكلمة الدالة: أول سطر يشبه اسماً تحت العنوان مباشرة
+    if (!author && big.length) {
+      var titleBottom = Math.max.apply(null, big.map(function (l) { return l.y + l.h; }));
+      var cands = lines.filter(function (l) {
+        return big.indexOf(l) < 0 && l.y >= titleBottom - 5 && !PUB_RE.test(l.t) && !/\d/.test(l.t);
+      });
+      var pick = cands[0] || null;
+      if (pick) {
+        var words = pick.t.split(/\s+/).length;
+        if (words >= 2 && words <= 5 && pick.t.length >= 4) author = pick.t;
+      }
+    }
+    return { title: title, author: author };
+  }
+
   function applyOcr(d) {
     var lines = [];
     (d.lines || []).forEach(function (l) {
@@ -476,9 +516,9 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     }
     if (!lines.length) { setStatus("warn", "ما انقرأ شيء. صوّر الغلاف أقرب وبإضاءة أوضح، أو اكتب يدوياً."); return; }
     lines.sort(function (a, b) { return a.y - b.y; });
-    var maxH = Math.max.apply(null, lines.map(function (l) { return l.h; }));
-    var big = lines.filter(function (l) { return maxH > 0 && l.h >= maxH * 0.72; }).slice(0, 3);
-    titleIn.value = big.map(function (l) { return l.t; }).join(" ");
+    var parsed = parseCover(lines);
+    titleIn.value = parsed.title;
+    authorIn.value = parsed.author;
     var box = $("lines"); box.replaceChildren();
     lines.slice(0, 10).forEach(function (l) {
       var b = el("button", "line-chip", l.t); b.type = "button";
@@ -492,7 +532,8 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     var s = suggest(lines.map(function (l) { return l.t; }).join(" "));
     if (s) setCat(s);
     checkDup();
-    setStatus("warn", "راجع العنوان" + (s ? " والقسم المقترح" : " واختر القسم") + " قبل الحفظ.");
+    if (parsed.author) setStatus("ok", "تمت القراءة: العنوان والمؤلف — راجعها قبل الحفظ.");
+    else setStatus("warn", "راجع العنوان قبل الحفظ. ما لقيت اسم المؤلف — اضغط على سطره من الأسفل أو اكتبه.");
   }
 
   $("manualBtn").addEventListener("click", function () { openDraft(null); setStatus("", "اكتب العنوان واختر القسم."); titleIn.focus(); });
