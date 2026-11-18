@@ -279,8 +279,8 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
   function read(key) { try { return JSON.parse(localStorage.getItem(key)) || {}; } catch (e) { return {}; } }
   var cfg = read(CFG_KEY);
   // الربط الافتراضي بالشيت (يُملأ برابط تطبيق الويب والرمز بعد النشر)
-  var DEFAULT_URL = "";
-  var DEFAULT_TOKEN = "";
+  var DEFAULT_URL = "https://script.google.com/macros/s/AKfycbwXk8cb-_K2_icE5dQfAg4wqGwIV8mI0Map0B7CnVBru46BW2bfYKwK1dEO26gpq7d25Q/exec";
+  var DEFAULT_TOKEN = "R6NDn8CwaoAx2pLD";
   if (!cfg.url && DEFAULT_URL) cfg.url = DEFAULT_URL;
   if (!cfg.token && DEFAULT_TOKEN) cfg.token = DEFAULT_TOKEN;
   if (!cfg.device) cfg.device = "جهاز-" + Math.random().toString(36).slice(2, 5);
