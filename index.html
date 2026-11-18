@@ -1224,6 +1224,15 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     }
   }
   /* ---------- رفوف المكتبة الرقمية (تظهر عند فتح التبويب) ---------- */
+  // أسعار قوقل تجي غالباً بالدولار حتى مع country=OM — نحوّلها للريال العماني.
+  // الريال مربوط بالدولار (1 ر.ع. = 2.6008 دولار) فسعر الصرف ثابت: 1 دولار = 0.3845 ر.ع.، و1 درهم = 0.1047 ر.ع.
+  function omrPrice(p) {
+    var cur = p.currencyCode;
+    if (cur === "OMR") return p.amount + " ر.ع.";
+    if (cur === "USD") return (Math.round(p.amount * 0.3845 * 100) / 100) + " ر.ع.";
+    if (cur === "AED") return (Math.round(p.amount * 0.1047 * 100) / 100) + " ر.ع.";
+    return p.amount + " " + cur;
+  }
   var SHELF_CATS = ["newest", "bestsellers", "scifi", "novels"];
   var shelvesLoaded = false;
   function shelfCacheGet(key) { try { var s = sessionStorage.getItem("lib-shelf-" + worldLang + "-" + key); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
@@ -1318,7 +1327,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
         }
       }
       if (sale.saleability === "FREE") info.appendChild(el("span", "b-price", "مجاني"));
-      else if (sale.listPrice) info.appendChild(el("span", "b-price", "السعر: " + sale.listPrice.amount + " " + (sale.listPrice.currencyCode === "OMR" ? "ر.ع." : sale.listPrice.currencyCode)));
+      else if (sale.listPrice) info.appendChild(el("span", "b-price", "السعر: " + omrPrice(sale.listPrice)));
       else info.appendChild(el("span", "b-meta", "السعر غير متوفر"));
       if (v.infoLink) {
         var a = el("a", "linkbtn", "عرض الكتاب");
