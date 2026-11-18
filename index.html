@@ -339,6 +339,22 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     return j;
   }
   /* ---------- القراءة الذكية عبر السيرفر (Gemini ثم OCR.space) ---------- */
+  function loadImage(file) {
+    // يرجع صورة (ImageBitmap أو <img>) جاهزة للرسم على canvas
+    function viaImg() {
+      return new Promise(function (res, rej) {
+        var url = URL.createObjectURL(file);
+        var im = new Image();
+        im.onload = function () { URL.revokeObjectURL(url); res(im); };
+        im.onerror = function () { URL.revokeObjectURL(url); rej(new Error("img")); };
+        im.src = url;
+      });
+    }
+    if (window.createImageBitmap) {
+      return createImageBitmap(file, { imageOrientation: "from-image" }).catch(function () { return viaImg(); });
+    }
+    return viaImg();
+  }
   function fileToJpegB64(file) {
     return new Promise(function (res) {
       loadImage(file).then(function (img) {
@@ -536,7 +552,8 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
   async function runPhotoOcr(f, my) {
     // 1) القراءة الذكية عبر السيرفر (Gemini ثم OCR.space)
     setStatus("busy", "جاري القراءة بالذكاء الاصطناعي…");
-    var srv = await readViaServer(f);
+    var srv = null;
+    try { srv = await readViaServer(f); } catch (e) { srv = null; }
     if (my !== reqId) return;
     if (srv) {
       if (srv.title) {
