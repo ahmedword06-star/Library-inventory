@@ -248,6 +248,8 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
         <img id="thumb" class="thumb" alt="صورة الغلاف" hidden>
         <div class="d-fields">
           <p id="status" class="status" role="status"></p>
+          <label for="cls">رقم التصنيف</label>
+          <input id="cls" type="text" autocomplete="off" maxlength="30" placeholder="مثال: 800">
           <label for="title">العنوان</label>
           <input id="title" type="text" autocomplete="off">
           <label for="author">المؤلف</label>
@@ -710,7 +712,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
   function setStatus(kind, msg) { statusEl.dataset.kind = kind; statusEl.textContent = msg; }
   function releaseThumb() { if (draftUrl) { URL.revokeObjectURL(draftUrl); draftUrl = ""; } }
   function openDraft(file) {
-    releaseThumb(); titleIn.value = ""; authorIn.value = ""; setCat(""); $("dup").hidden = true;
+    releaseThumb(); titleIn.value = ""; authorIn.value = ""; $("cls").value = ""; setCat(""); $("dup").hidden = true;
     $("linesBox").hidden = true; $("lines").replaceChildren(); $("retryBtn").hidden = !file;
     var img = $("thumb");
     if (file) { draftUrl = URL.createObjectURL(file); img.src = draftUrl; img.hidden = false; } else { img.removeAttribute("src"); img.hidden = true; }
@@ -981,7 +983,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     ev.preventDefault();
     var cat = getCat(); if (!cat) { setStatus("warn", "اختر القسم أولاً."); return; }
     data.shelf = $("shelf").value.trim();
-    data.pending.push({ id: uid(), time: Date.now(), cat: cat, title: titleIn.value.trim(), author: authorIn.value.trim(), shelf: data.shelf, device: cfg.device });
+    data.pending.push({ id: uid(), time: Date.now(), cat: cat, cls: $("cls").value.trim(), title: titleIn.value.trim(), author: authorIn.value.trim(), shelf: data.shelf, device: cfg.device });
     store(); closeDraft(); renderAll(); flush();
     toast("تم الحفظ. العدد " + allBooks().length);
     if ($("autoCam").checked) { if (lastWasScan) { startScan(); } else { try { photo.click(); } catch (e) {} } }
@@ -1008,7 +1010,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     var list = $("list"); list.replaceChildren();
     books.slice(-15).reverse().forEach(function (b) {
       var row = el("div", "row"); row.appendChild(el("strong", null, b.title || "(بدون عنوان)"));
-      row.appendChild(el("span", null, [b.cat, b.author, b.shelf ? "الرف " + b.shelf : ""].filter(Boolean).join(" · "))); list.appendChild(row);
+      row.appendChild(el("span", null, [b.cat, b.cls ? "تصنيف " + b.cls : "", b.author, b.shelf ? "الرف " + b.shelf : ""].filter(Boolean).join(" · "))); list.appendChild(row);
     });
     $("empty").hidden = books.length > 0;
   }
@@ -1020,7 +1022,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     var books = allBooks(); if (!books.length) { toast("ما فيه كتب للنسخ بعد"); return; }
     var order = {}; CATS.forEach(function (c, i) { order[c] = i; });
     var sorted = books.slice().sort(function (a, b) { return ((order[a.cat] || 0) - (order[b.cat] || 0)) || String(a.title).localeCompare(String(b.title), "ar"); });
-    var rows = [["م", "القسم", "العنوان", "المؤلف", "الرف"]].concat(sorted.map(function (b, i) { return [i + 1, b.cat, b.title, b.author || "", b.shelf || ""]; }));
+    var rows = [["م", "القسم", "رقم التصنيف", "العنوان", "المؤلف", "الرف"]].concat(sorted.map(function (b, i) { return [i + 1, b.cat, b.cls || "", b.title, b.author || "", b.shelf || ""]; }));
     var text = rows.map(function (r) { return r.map(function (x) { return String(x).replace(/[\t\r\n]+/g, " "); }).join("\t"); }).join("\n");
     try { await navigator.clipboard.writeText(text); $("fallback").hidden = true; toast("تم النسخ. الصقه في Google Sheets"); }
     catch (e) { var ta = $("fallback"); ta.hidden = false; ta.value = text; ta.focus(); ta.select(); toast("انسخ النص يدوياً من المربع"); }
@@ -1071,7 +1073,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     hits.forEach(function (b) {
       var row = el("div", "row");
       row.appendChild(el("strong", null, b.title || "(بدون عنوان)"));
-      row.appendChild(el("span", null, [b.cat, b.author, b.shelf ? "الرف " + b.shelf : "الرف غير محدد"].filter(Boolean).join(" · ")));
+      row.appendChild(el("span", null, [b.cat, b.cls ? "تصنيف " + b.cls : "", b.author, b.shelf ? "الرف " + b.shelf : "الرف غير محدد"].filter(Boolean).join(" · ")));
       var borrowBtn = el("button", "btn", "طلب استعارة"); borrowBtn.type = "button";
       borrowBtn.style.minHeight = "38px"; borrowBtn.style.padding = "0 12px"; borrowBtn.style.marginTop = "6px";
       borrowBtn.addEventListener("click", function () { openBorrowForm(b); });
