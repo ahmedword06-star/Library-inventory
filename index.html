@@ -338,6 +338,56 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     if (!j.ok) throw { code: j.error || "fail" };
     return j;
   }
+  /* ---------- القراءة الذكية عبر السيرفر (Gemini ثم OCR.space) ---------- */
+  function fileToJpegB64(file) {
+    return new Promise(function (res) {
+      loadImage(file).then(function (img) {
+        var sc = Math.min(1, 1024 / Math.max(img.width, img.height));
+        var cv = document.createElement("canvas");
+        cv.width = Math.round(img.width * sc); cv.height = Math.round(img.height * sc);
+        var ctx = cv.getContext("2d"); ctx.drawImage(img, 0, 0, cv.width, cv.height);
+        cv.toBlob(function (b) {
+          if (!b) { res(null); return; }
+          var r = new FileReader();
+          r.onload = function () { res(String(r.result).split(",")[1]); };
+          r.onerror = function () { res(null); };
+          r.readAsDataURL(b);
+        }, "image/jpeg", 0.82);
+      }).catch(function () { res(null); });
+    });
+  }
+  async function readViaServer(file) {
+    if (!linked()) return null;
+    var b64 = await fileToJpegB64(file);
+    if (!b64) return null;
+    var ctl = new AbortController();
+    var to = setTimeout(function () { ctl.abort(); }, 30000);
+    try {
+      var res = await fetch(cfg.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ token: cfg.token, action: "read", image: b64, mime: "image/jpeg" }), signal: ctl.signal });
+      if (!res.ok) return null;
+      var j = await res.json();
+      return j.ok ? j : null;
+    } catch (e) { return null; }
+    finally { clearTimeout(to); }
+  }
+  function showLineChips(lines) {
+    var box = $("lines"); box.replaceChildren();
+    lines.slice(0, 10).forEach(function (l) {
+      var b = el("button", "line-chip", l.t); b.type = "button";
+      b.addEventListener("click", function () {
+        var tgt = document.querySelector('input[name="target"]:checked').value === "author" ? authorIn : titleIn;
+        tgt.value = (tgt.value ? tgt.value + " " : "") + l.t; checkDup();
+      });
+      box.appendChild(b);
+    });
+    $("linesBox").hidden = false;
+  }
+  function applyServerLines(lines) {
+    showLineChips(lines.map(function (t) { return { t: t }; }));
+    var s = suggest(lines.join(" "));
+    if (s) setCat(s);
+    setStatus("warn", "انقرأت النصوص — اضغط على سطر العنوان ثم سطر المؤلف من الأسفل.");
+  }
   async function sync() {
     if (!linked()) return;
     try {
@@ -484,6 +534,21 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     return garbledCount(lines2) < garbledCount(lines1) ? r2 : r1;
   }
   async function runPhotoOcr(f, my) {
+    // 1) القراءة الذكية عبر السيرفر (Gemini ثم OCR.space)
+    setStatus("busy", "جاري القراءة بالذكاء الاصطناعي…");
+    var srv = await readViaServer(f);
+    if (my !== reqId) return;
+    if (srv) {
+      if (srv.title) {
+        titleIn.value = srv.title; authorIn.value = srv.author || "";
+        var s2 = suggest((srv.title + " " + (srv.author || "")).trim()); if (s2) setCat(s2);
+        checkDup();
+        setStatus("ok", "تمت القراءة بالذكاء الاصطناعي: العنوان والمؤلف — راجعها قبل الحفظ.");
+        return;
+      }
+      if (srv.lines) { applyServerLines(srv.lines); return; }
+    }
+    // 2) القراءة المحلية (Tesseract) إذا السيرفر ما رد
     if (!window.Tesseract) { setStatus("warn", "مكتبة القراءة ما تحمّلت. تأكد من الإنترنت أو اكتب يدوياً."); return; }
     ocrStatus = function (k, m) { if (my === reqId) setStatus(k, m); };
     setStatus("busy", "جاري تجهيز القراءة…");
@@ -566,16 +631,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     var parsed = parseCover(lines);
     titleIn.value = parsed.title;
     authorIn.value = parsed.author;
-    var box = $("lines"); box.replaceChildren();
-    lines.slice(0, 10).forEach(function (l) {
-      var b = el("button", "line-chip", l.t); b.type = "button";
-      b.addEventListener("click", function () {
-        var tgt = document.querySelector('input[name="target"]:checked').value === "author" ? authorIn : titleIn;
-        tgt.value = (tgt.value ? tgt.value + " " : "") + l.t; checkDup();
-      });
-      box.appendChild(b);
-    });
-    $("linesBox").hidden = false;
+    showLineChips(lines);
     var s = suggest(lines.map(function (l) { return l.t; }).join(" "));
     if (s) setCat(s);
     checkDup();
@@ -648,6 +704,26 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     scanBusy = true;
     try {
       setScanStatus("جاري قراءة اللقطة…");
+      var file = await canvasToFile(cv);
+      var srv = await readViaServer(file);
+      if (!scanOn) return;
+      if (srv && srv.title) {
+        stopScan();
+        lastWasScan = true;
+        openDraft(file);
+        titleIn.value = srv.title; authorIn.value = srv.author || "";
+        var s2 = suggest((srv.title + " " + (srv.author || "")).trim()); if (s2) setCat(s2);
+        checkDup();
+        setStatus("ok", "تمت القراءة بالذكاء الاصطناعي: العنوان والمؤلف — راجعها قبل الحفظ.");
+        return;
+      }
+      if (srv && srv.lines) {
+        stopScan();
+        lastWasScan = true;
+        openDraft(file);
+        applyServerLines(srv.lines);
+        return;
+      }
       var w = await getWorker();
       var r = await w.recognize(cv);
       if (!scanOn) return;
