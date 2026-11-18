@@ -433,7 +433,11 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     b.addEventListener("click", function () { showLogin("choice"); });
   });
   var savedStudent = sessionStorage.getItem("lib-student");
-  if (sessionStorage.getItem("lib-auth") === "1") { unlock(); }
+  if (sessionStorage.getItem("lib-auth") === "1") {
+    // جلسة قديمة من قبل التحقق في السيرفر لا تحمل رمز المعلم — أجبر إعادة الدخول مرة واحدة
+    if (sessionStorage.getItem("lib-teacher-code")) { unlock(); }
+    else { sessionStorage.removeItem("lib-auth"); }
+  }
   document.getElementById("loginForm").addEventListener("submit", function (e) {
     e.preventDefault();
     var input = document.getElementById("codeInput");
