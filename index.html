@@ -411,7 +411,9 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
 
 <script>
 (function () {
-  // دخول المعلمين: الرمز يُتحقق منه في السيرفر فقط — لا يوجد أي أثر له في هذا الملف المنشور.
+  // دخول المعلمين: الرمز نفسه غير مكتوب في الملف أبداً، مخزّن فقط بصمته (SHA-256)
+  var CODE_HASH = "4f9f10b304cfe9b2b11fcb1387f694e18f08ea358c7e9f567434d3ad6cbd7fc4";
+  // مفتاح Google Books المجاني (مشروع Rufuf Library): يرفع حدّ البحث الرقمي اليومي. مقيّد لموقع المدرسة فقط.
   var gate = document.getElementById("loginGate");
   var app = document.getElementById("app");
   var studentApp = document.getElementById("studentApp");
@@ -433,29 +435,19 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     b.addEventListener("click", function () { showLogin("choice"); });
   });
   var savedStudent = sessionStorage.getItem("lib-student");
-  if (sessionStorage.getItem("lib-auth") === "1") {
-    // جلسة قديمة من قبل التحقق في السيرفر لا تحمل رمز المعلم — أجبر إعادة الدخول مرة واحدة
-    if (sessionStorage.getItem("lib-teacher-code")) { unlock(); }
-    else { sessionStorage.removeItem("lib-auth"); }
-  }
+  if (sessionStorage.getItem("lib-auth") === "1") { unlock(); }
+  function hex(buf) { return Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join(""); }
   document.getElementById("loginForm").addEventListener("submit", function (e) {
     e.preventDefault();
     var input = document.getElementById("codeInput");
     var err = document.getElementById("loginErr");
-    var code = input.value.trim();
-    if (!code) { err.textContent = "اكتب الرمز أولاً"; err.hidden = false; return; }
-    err.hidden = true;
-    api("POST", { action: "teacherLogin", code: code }).then(function () {
-      sessionStorage.setItem("lib-auth", "1");
-      sessionStorage.setItem("lib-teacher-code", code);
-      unlock();
-    }).catch(function (ex) {
-      if (ex && ex.code === "code") { err.textContent = "الرمز غير صحيح، حاول مرة أخرى"; }
-      else { err.textContent = "تعذّر الاتصال، تأكد من الإنترنت وحاول مرة ثانية"; }
-      err.hidden = false; input.value = ""; input.focus();
+    if (!window.crypto || !crypto.subtle) { err.textContent = "افتح الموقع من الرابط الآمن (https) للدخول"; err.hidden = false; return; }
+    crypto.subtle.digest("SHA-256", new TextEncoder().encode(input.value.trim())).then(function (buf) {
+      if (hex(buf) === CODE_HASH) { sessionStorage.setItem("lib-auth", "1"); unlock(); }
+      else { err.textContent = "الرمز غير صحيح، حاول مرة أخرى"; err.hidden = false; input.value = ""; input.focus(); }
     });
   });
-  document.getElementById("logoutBtn").addEventListener("click", function () { sessionStorage.removeItem("lib-auth"); sessionStorage.removeItem("lib-teacher-code"); location.reload(); });
+  document.getElementById("logoutBtn").addEventListener("click", function () { sessionStorage.removeItem("lib-auth"); location.reload(); });
   var CATS = ["ديني", "أدب", "علوم", "تاريخ وجغرافيا", "أطفال", "لغة", "فكر واجتماع", "تقنية", "سير وتراجم", "مراجع", "أخرى"];
   var KW = {
     "ديني": ["قران", "تفسير", "حديث", "فقه", "اسلام", "دعاء", "عقيده", "صلاه", "رياض الصالحين", "الصحيح", "الايمان", "شريعه", "سنه النبويه"],
@@ -518,30 +510,14 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
   var flushing = false, linkState = "";
   async function api(method, body) {
     var res;
-    var ctl = new AbortController();
-    var to = setTimeout(function () { ctl.abort(); }, 25000);
-    try {
-      if (method === "GET") {
-        res = await fetch(cfg.url + (cfg.url.indexOf("?") >= 0 ? "&" : "?") + "token=" + encodeURIComponent(cfg.token) + "&_=" + Date.now(), { signal: ctl.signal });
-      } else {
-        var payload = Object.assign({ token: cfg.token }, body);
-        var tc = sessionStorage.getItem("lib-teacher-code");
-        if (tc) payload.teacherCode = tc;
-        res = await fetch(cfg.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload), signal: ctl.signal });
-      }
-    } catch (e) {
-      clearTimeout(to);
-      throw { code: (e && e.name === "AbortError") ? "timeout" : "http", detail: String((e && e.message) || e) };
+    if (method === "GET") {
+      res = await fetch(cfg.url + (cfg.url.indexOf("?") >= 0 ? "&" : "?") + "token=" + encodeURIComponent(cfg.token) + "&_=" + Date.now());
+    } else {
+      res = await fetch(cfg.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(Object.assign({ token: cfg.token }, body)) });
     }
-    clearTimeout(to);
-    if (!res.ok) {
-      var txt = "";
-      try { txt = (await res.text()).slice(0, 200); } catch (e2) {}
-      throw { code: "http", detail: "HTTP " + res.status + " " + txt };
-    }
-    var j;
-    try { j = await res.json(); } catch (e3) { throw { code: "json", detail: String(e3 && e3.message) }; }
-    if (!j.ok) throw { code: j.error || "fail", detail: JSON.stringify(j).slice(0, 200) };
+    if (!res.ok) throw { code: "http" };
+    var j = await res.json();
+    if (!j.ok) throw { code: j.error || "fail" };
     return j;
   }
   /* ---------- القراءة الذكية عبر السيرفر (Gemini ثم OCR.space) ---------- */
@@ -587,7 +563,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     var ctl = new AbortController();
     var to = setTimeout(function () { ctl.abort(); }, 30000);
     try {
-      var res = await fetch(cfg.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ token: cfg.token, action: "read", teacherCode: sessionStorage.getItem("lib-teacher-code") || "", image: b64, mime: "image/jpeg" }), signal: ctl.signal });
+      var res = await fetch(cfg.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ token: cfg.token, action: "read", image: b64, mime: "image/jpeg" }), signal: ctl.signal });
       if (!res.ok) return null;
       var j = await res.json();
       if (j && j.diag) lastSrvDiag = j.diag;
@@ -626,27 +602,16 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
   async function flush() {
     if (flushing || !data.pending.length || !linked()) return;
     flushing = true; renderLink();
-    var lastErr = null, sent = 0;
+    var batch = data.pending.slice(0, 50);
     try {
-      var queue = data.pending.slice();
-      for (var i = 0; i < queue.length; i++) {
-        var b = queue[i];
-        try {
-          await api("POST", { items: [b] });
-          data.pending = data.pending.filter(function (x) { return x.id !== b.id; });
-          data.remote.push(b);
-          sent++;
-        } catch (e) {
-          lastErr = { id: b.id, title: b.title, code: e && e.code, detail: (e && e.detail) || "" };
-          if (e && e.code === "token") break; // الرمز خاطئ: لا فائدة من تجربة الباقي
-        }
-      }
-      linkState = !lastErr ? "ok" : (lastErr.code === "token" ? "token" : "bad");
-      try { localStorage.setItem("lib-last-flush", JSON.stringify({ time: Date.now(), sent: sent, failed: lastErr })); } catch (e2) {}
-      store(); renderAll();
-      if (data.pending.length && !lastErr) flush();
-    } finally {
-      flushing = false; renderLink();
+      await api("POST", { items: batch });
+      var ids = {}; batch.forEach(function (b) { ids[b.id] = 1; });
+      data.pending = data.pending.filter(function (b) { return !ids[b.id]; });
+      data.remote = data.remote.concat(batch);
+      linkState = "ok"; flushing = false; store(); renderAll();
+      if (data.pending.length) flush();
+    } catch (e) {
+      flushing = false; linkState = e && e.code === "token" ? "token" : "bad"; renderLink();
     }
   }
   window.addEventListener("online", function () { flush(); });
@@ -656,7 +621,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     if (!linked()) { txt.textContent = "غير مربوط بالشيت. الحفظ في هذا الجهاز فقط. اربطه من تبويب الإعدادات."; return; }
     var p = data.pending.length;
     if (linkState === "token") { dot.classList.add("bad"); txt.textContent = "الرمز السري غير صحيح. راجع الإعدادات."; }
-    else if (linkState === "bad" || p) { dot.classList.add(linkState === "bad" ? "bad" : ""); var lf = null; try { lf = JSON.parse(localStorage.getItem("lib-last-flush") || "null"); } catch (e) {} var errTxt = (linkState === "bad" && lf && lf.failed) ? " — خطأ: " + (lf.failed.code || "") + " " + (lf.failed.detail || "") : (linkState === "bad" ? " (لا يوجد اتصال، سيُعاد الإرسال تلقائياً)" : ""); txt.textContent = (flushing ? "جاري الإرسال… " : "بانتظار الإرسال: ") + p + " كتاب" + errTxt; }
+    else if (linkState === "bad" || p) { dot.classList.add(linkState === "bad" ? "bad" : ""); txt.textContent = (flushing ? "جاري الإرسال… " : "بانتظار الإرسال: ") + p + " كتاب" + (linkState === "bad" ? " (لا يوجد اتصال، سيُعاد الإرسال تلقائياً)" : ""); }
     else { dot.classList.add("ok"); txt.textContent = "متصل بالشيت. كل الكتب محفوظة."; }
   }
 
