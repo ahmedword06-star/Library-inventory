@@ -127,6 +127,14 @@ legend { font-size: 14px; color: var(--muted); font-weight: 500; padding: 0; mar
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
 .chip { border: 1px solid var(--accent); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 8px 14px; font-size: 14px; min-height: 38px; cursor: pointer; font-family: inherit; }
 .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.shelf { margin-top: 20px; }
+.shelf-title { font-size: 17px; margin: 0 0 10px; }
+.shelf-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+.shelf-book { flex: 0 0 96px; background: none; border: 0; padding: 0; font-family: inherit; cursor: pointer; text-align: center; display: flex; flex-direction: column; gap: 4px; align-items: center; }
+.shelf-book img { width: 96px; height: 144px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); }
+.shelf-nocover { width: 96px; height: 144px; border-radius: 8px; border: 1px dashed var(--line); background: var(--surface-2); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--muted); padding: 8px; box-sizing: border-box; }
+.shelf-t { font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.shelf-a { font-size: 12px; color: var(--muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
 .row:first-child { border-top: 0; }
 .row strong { display: block; overflow-wrap: anywhere; }
 .row span { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
@@ -348,6 +356,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     </div>
     <p id="worldHint" class="muted small" role="status">اكتب عنوان الكتاب أو اسم المؤلف ثم اضغط ابحث.</p>
     <div id="worldResults"></div>
+    <div id="worldShelves"></div>
   </section>
   <footer class="credit">إعداد: أ. أحمد النعيمي<br><button id="studentLogoutBtn" class="logout" type="button">تسجيل الخروج</button></footer>
 </div>
@@ -1030,6 +1039,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     $("tabWorld").setAttribute("aria-pressed", String(world));
     $("viewSchool").hidden = world;
     $("viewWorld").hidden = !world;
+    if (world) loadShelves();
   }
   $("tabSchool").addEventListener("click", function () { showWorldTab(false); });
   $("tabWorld").addEventListener("click", function () { showWorldTab(true); });
@@ -1047,6 +1057,17 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     c.addEventListener("click", function () { searchWorld(c.dataset.cat); });
   });
   function stripHtml(s) { var d = document.createElement("div"); d.innerHTML = s || ""; return (d.textContent || "").trim(); }
+  async function fetchWorldBooks(cat, typedQ) {
+    var q = cat ? cat.q : typedQ;
+    var url = "https://www.googleapis.com/books/v1/volumes?q=" + encodeURIComponent(q) + "&maxResults=10&printType=books";
+    if (cat && cat.lang) url += "&langRestrict=" + cat.lang;
+    if (cat && cat.orderBy) url += "&orderBy=" + cat.orderBy;
+    if (GOOGLE_BOOKS_KEY) url += "&key=" + GOOGLE_BOOKS_KEY;
+    var res = await fetch(url);
+    if (!res.ok) throw { code: res.status };
+    var d = await res.json();
+    return d.items || [];
+  }
   async function searchWorld(catKey) {
     var cat = catKey ? WORLD_CATS[catKey] : null;
     var q = cat ? cat.q : $("worldSearch").value.trim();
@@ -1057,16 +1078,66 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     box.replaceChildren();
     document.querySelectorAll("#worldChips .chip").forEach(function (c) { c.setAttribute("aria-pressed", String(!!cat && c.dataset.cat === catKey)); });
     try {
-      var url = "https://www.googleapis.com/books/v1/volumes?q=" + encodeURIComponent(q) + "&maxResults=10&printType=books";
-      if (cat && cat.lang) url += "&langRestrict=" + cat.lang;
-      if (cat && cat.orderBy) url += "&orderBy=" + cat.orderBy;
-      if (GOOGLE_BOOKS_KEY) url += "&key=" + GOOGLE_BOOKS_KEY;
-      var res = await fetch(url);
-      if (!res.ok) throw { code: res.status };
-      var d = await res.json();
-      renderWorldResults(d.items || []);
+      var items = await fetchWorldBooks(cat, q);
+      renderWorldResults(items);
     } catch (e) {
       hint.textContent = (e && e.code === 429) ? "وصل البحث الرقمي لحدّه اليوم، جرّب لاحقاً." : "تعذّر البحث الرقمي. تأكد من الإنترنت وحاول مرة ثانية.";
+    }
+  }
+  /* ---------- رفوف المكتبة الرقمية (تظهر عند فتح التبويب) ---------- */
+  var SHELF_CATS = ["bestsellers", "scifi", "arabic"];
+  var shelvesLoaded = false;
+  function shelfCacheGet(key) { try { var s = sessionStorage.getItem("lib-shelf-" + key); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+  function shelfCacheSet(key, items) { try { sessionStorage.setItem("lib-shelf-" + key, JSON.stringify(items)); } catch (e) {} }
+  function renderShelf(catKey, items) {
+    var cat = WORLD_CATS[catKey];
+    var shelf = el("div", "shelf");
+    shelf.appendChild(el("h3", "shelf-title", cat.label));
+    var row = el("div", "shelf-row");
+    items.forEach(function (it) {
+      var v = it.volumeInfo || {};
+      var b = el("button", "shelf-book"); b.type = "button";
+      var thumb = (v.imageLinks && (v.imageLinks.thumbnail || v.imageLinks.smallThumbnail)) || "";
+      if (thumb) {
+        var img = document.createElement("img");
+        img.src = thumb.replace(/^http:/, "https:");
+        img.alt = "غلاف " + (v.title || "كتاب");
+        img.loading = "lazy";
+        b.appendChild(img);
+      } else {
+        b.appendChild(el("div", "shelf-nocover", "غلاف غير متوفر"));
+      }
+      b.appendChild(el("span", "shelf-t", v.title || "(بدون عنوان)"));
+      if (v.authors && v.authors.length) b.appendChild(el("span", "shelf-a", v.authors[0]));
+      b.addEventListener("click", function () {
+        renderWorldResults([it]);
+        $("worldResults").scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      row.appendChild(b);
+    });
+    shelf.appendChild(row);
+    $("worldShelves").appendChild(shelf);
+  }
+  async function loadShelves() {
+    if (shelvesLoaded) return; shelvesLoaded = true;
+    var box = $("worldShelves");
+    box.replaceChildren();
+    var loading = el("p", "muted small", "جاري تجهيز الرفوف…");
+    box.appendChild(loading);
+    var ok = 0;
+    for (var i = 0; i < SHELF_CATS.length; i++) {
+      var key = SHELF_CATS[i];
+      var items = shelfCacheGet(key);
+      if (!items) {
+        try { items = await fetchWorldBooks(WORLD_CATS[key], ""); if (items && items.length) shelfCacheSet(key, items); }
+        catch (e) { items = null; }
+      }
+      if (items && items.length) { renderShelf(key, items.slice(0, 10)); ok++; }
+    }
+    loading.remove();
+    if (!ok) {
+      shelvesLoaded = false;
+      box.appendChild(el("p", "muted small", "تعذّر تحميل الرفوف. جرّب البحث أعلاه."));
     }
   }
   function renderWorldResults(items) {
