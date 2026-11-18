@@ -116,6 +116,14 @@ legend { font-size: 14px; color: var(--muted); font-weight: 500; padding: 0; mar
 .sum-bar { height: 5px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
 .sum-bar i { display: block; height: 100%; background: var(--accent); }
 .row { padding: 10px 0; border-top: 1px solid var(--line); }
+.book { display: flex; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+.book:first-child { border-top: 0; }
+.book img { width: 64px; height: 96px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); flex: none; background: var(--surface-2); }
+.book .b-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.book .b-meta { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.book .b-desc { font-size: 14px; color: var(--muted); line-height: 1.7; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.book .b-desc.open { display: block; }
+.book .b-price { font-weight: 700; color: var(--accent-2); font-size: 15px; }
 .row:first-child { border-top: 0; }
 .row strong { display: block; overflow-wrap: anywhere; }
 .row span { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
@@ -310,12 +318,24 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     <h1>رفوف حذيفة</h1>
     <p class="subtitle">مكتبة مدرسة حذيفة بن محصن — بحث الطالب</p>
   </header>
-  <section class="card">
+  <nav class="tabs" aria-label="أماكن البحث">
+    <button id="tabSchool" type="button" aria-pressed="true">في مكتبة المدرسة</button>
+    <button id="tabWorld" type="button" aria-pressed="false">مكتبة رقمية</button>
+  </nav>
+  <section class="card" id="viewSchool">
     <p class="muted small">أهلاً <b id="studentName"></b> — ابحث عن كتاب بالعنوان أو اسم المؤلف.</p>
     <label for="studentSearch">ابحث عن كتاب</label>
     <input id="studentSearch" type="text" autocomplete="off" placeholder="مثال: رجال تحت الشمس">
     <p id="studentHint" class="muted small">اكتب عنوان الكتاب أو اسم المؤلف.</p>
     <div id="studentResults"></div>
+  </section>
+  <section class="card" id="viewWorld" hidden>
+    <p class="muted small">ابحث في مكتبة قوقل الرقمية — ملايين الكتب من كل العالم.</p>
+    <label for="worldSearch">ابحث عن كتاب</label>
+    <input id="worldSearch" type="text" autocomplete="off" placeholder="مثال: Harry Potter">
+    <div class="actions"><button id="worldSearchBtn" class="btn primary" type="button">ابحث</button></div>
+    <p id="worldHint" class="muted small" role="status">اكتب عنوان الكتاب أو اسم المؤلف ثم اضغط ابحث.</p>
+    <div id="worldResults"></div>
   </section>
   <footer class="credit">إعداد: أ. أحمد النعيمي<br><button id="studentLogoutBtn" class="logout" type="button">تسجيل الخروج</button></footer>
 </div>
@@ -325,6 +345,8 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
 (function () {
   // دخول المعلمين: الرمز نفسه غير مكتوب في الملف أبداً، مخزّن فقط بصمته (SHA-256)
   var CODE_HASH = "4f9f10b304cfe9b2b11fcb1387f694e18f08ea358c7e9f567434d3ad6cbd7fc4";
+  // مفتاح Google Books المجاني (اختياري): يرفع حدّ البحث الرقمي اليومي. اتركه فارغاً للعمل بدون مفتاح.
+  var GOOGLE_BOOKS_KEY = "";
   var gate = document.getElementById("loginGate");
   var app = document.getElementById("app");
   var studentApp = document.getElementById("studentApp");
@@ -989,6 +1011,86 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     });
   }
   $("studentSearch").addEventListener("input", renderStudentResults);
+
+  /* ---------- المكتبة الرقمية (Google Books) ---------- */
+  function showWorldTab(world) {
+    $("tabSchool").setAttribute("aria-pressed", String(!world));
+    $("tabWorld").setAttribute("aria-pressed", String(world));
+    $("viewSchool").hidden = world;
+    $("viewWorld").hidden = !world;
+  }
+  $("tabSchool").addEventListener("click", function () { showWorldTab(false); });
+  $("tabWorld").addEventListener("click", function () { showWorldTab(true); });
+  $("worldSearchBtn").addEventListener("click", searchWorld);
+  $("worldSearch").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); searchWorld(); } });
+  function stripHtml(s) { var d = document.createElement("div"); d.innerHTML = s || ""; return (d.textContent || "").trim(); }
+  async function searchWorld() {
+    var q = $("worldSearch").value.trim();
+    var box = $("worldResults"); var hint = $("worldHint");
+    if (q.length < 2) { hint.textContent = "اكتب عنوان الكتاب أو اسم المؤلف ثم اضغط ابحث."; return; }
+    hint.textContent = "جاري البحث في المكتبة الرقمية…";
+    box.replaceChildren();
+    try {
+      var url = "https://www.googleapis.com/books/v1/volumes?q=" + encodeURIComponent(q) + "&maxResults=10&printType=books";
+      if (GOOGLE_BOOKS_KEY) url += "&key=" + GOOGLE_BOOKS_KEY;
+      var res = await fetch(url);
+      if (!res.ok) throw { code: res.status };
+      var d = await res.json();
+      renderWorldResults(d.items || []);
+    } catch (e) {
+      hint.textContent = (e && e.code === 429) ? "وصل البحث الرقمي لحدّه اليوم، جرّب لاحقاً." : "تعذّر البحث الرقمي. تأكد من الإنترنت وحاول مرة ثانية.";
+    }
+  }
+  function renderWorldResults(items) {
+    var box = $("worldResults"); var hint = $("worldHint");
+    box.replaceChildren();
+    if (!items.length) { hint.textContent = "ما لقينا كتاب بهذا الاسم في المكتبة الرقمية."; return; }
+    hint.textContent = "وجدنا " + items.length + " كتاب في المكتبة الرقمية:";
+    items.forEach(function (it) {
+      var v = it.volumeInfo || {}; var sale = it.saleInfo || {};
+      var card = el("div", "book");
+      var thumb = (v.imageLinks && (v.imageLinks.thumbnail || v.imageLinks.smallThumbnail)) || "";
+      if (thumb) {
+        var img = document.createElement("img");
+        img.src = thumb.replace(/^http:/, "https:");
+        img.alt = "غلاف " + (v.title || "كتاب");
+        img.loading = "lazy";
+        card.appendChild(img);
+      }
+      var info = el("div", "b-info");
+      info.appendChild(el("strong", null, v.title || "(بدون عنوان)"));
+      var meta = [];
+      if (v.authors && v.authors.length) meta.push(v.authors.join("، "));
+      if (v.publisher) meta.push(v.publisher);
+      if (v.publishedDate) meta.push(String(v.publishedDate).slice(0, 4));
+      if (v.pageCount) meta.push(v.pageCount + " صفحة");
+      if (meta.length) info.appendChild(el("span", "b-meta", meta.join(" · ")));
+      var desc = stripHtml(v.description || "");
+      if (desc) {
+        var dEl = el("p", "b-desc", desc.length > 220 ? desc.slice(0, 220) + "…" : desc);
+        info.appendChild(dEl);
+        if (desc.length > 220) {
+          var more = el("button", "linkbtn", "اقرأ المزيد"); more.type = "button";
+          more.addEventListener("click", function () {
+            var open = dEl.classList.toggle("open");
+            dEl.textContent = open ? desc : desc.slice(0, 220) + "…";
+            more.textContent = open ? "اقرأ أقل" : "اقرأ المزيد";
+          });
+          info.appendChild(more);
+        }
+      }
+      if (sale.saleability === "FREE") info.appendChild(el("span", "b-price", "مجاني"));
+      else if (sale.listPrice) info.appendChild(el("span", "b-price", "السعر: " + sale.listPrice.amount + " " + sale.listPrice.currencyCode));
+      else info.appendChild(el("span", "b-meta", "السعر غير متوفر"));
+      if (v.infoLink) {
+        var a = el("a", "linkbtn", "عرض الكتاب");
+        a.href = v.infoLink; a.target = "_blank"; a.rel = "noopener";
+        info.appendChild(a);
+      }
+      card.appendChild(info);
+      box.appendChild(card);
+    });
+  }
 
   /* ---------- إدارة الطلاب (المعلم) ---------- */
   async function loadStudents() {
