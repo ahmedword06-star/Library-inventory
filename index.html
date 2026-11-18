@@ -372,7 +372,9 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
       }).catch(function () { res(null); });
     });
   }
+  var lastSrvDiag = null;
   async function readViaServer(file) {
+    lastSrvDiag = null;
     if (!linked()) return null;
     var b64 = await fileToJpegB64(file);
     if (!b64) return null;
@@ -382,6 +384,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
       var res = await fetch(cfg.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ token: cfg.token, action: "read", image: b64, mime: "image/jpeg" }), signal: ctl.signal });
       if (!res.ok) return null;
       var j = await res.json();
+      if (j && j.diag) lastSrvDiag = j.diag;
       return j.ok ? j : null;
     } catch (e) { return null; }
     finally { clearTimeout(to); }
@@ -574,6 +577,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
       setStatus("busy", "جاري قراءة الغلاف…");
       var r = await recognizeBest(w, f); if (my !== reqId) return;
       applyOcr(r.data);
+      if (lastSrvDiag) setStatus("warn", statusEl.textContent + " — السيرفر: كود " + lastSrvDiag.geminiCode + " " + String(lastSrvDiag.geminiErr || "").slice(0, 100));
     } catch (e) { if (my === reqId) setStatus("warn", "تعذّرت القراءة. اضغط إعادة قراءة الغلاف أو اكتب يدوياً."); }
   }
   photo.addEventListener("change", async function () {
