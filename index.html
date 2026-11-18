@@ -25,6 +25,13 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f
 .cover h1 { font-size: 24px; }
 .cover .subtitle { font-size: 16px; color: var(--muted); font-weight: 600; margin: 0; }
 .credit { text-align: center; color: var(--muted); font-size: 14px; font-weight: 600; padding: 6px 0 2px; }
+.login-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50; }
+.login-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 22px 18px; max-width: 360px; width: 100%; display: flex; flex-direction: column; gap: 10px; text-align: center; }
+.login-card .ministry { font-size: 14px; color: var(--accent); font-weight: 700; margin: 0; }
+.login-card h1 { font-size: 22px; }
+.login-card input { text-align: center; font-size: 20px; letter-spacing: 6px; padding: 10px; }
+.login-err { color: var(--danger); font-size: 14px; font-weight: 600; margin: 0; }
+.logout { background: none; border: 0; color: var(--muted); font-size: 13px; text-decoration: underline; cursor: pointer; padding: 4px; }
 h1, h2 { margin: 0; font-weight: 700; }
 h1 { font-size: 28px; line-height: 1.2; } h2 { font-size: 18px; }
 p { margin: 0; }
@@ -99,7 +106,18 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
 </style>
 </head>
 <body>
-<div class="app">
+<div id="loginGate" class="login-overlay">
+  <form id="loginForm" class="login-card">
+    <p class="ministry">وزارة التعليم</p>
+    <h1>مكتبة مدرسة حذيفة بن محصن</h1>
+    <p class="muted small">دخول المعلمين — أدخل الرمز السري</p>
+    <label class="vh" for="codeInput">الرمز السري</label>
+    <input id="codeInput" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="••••••••" required>
+    <p id="loginErr" class="login-err" hidden>الرمز غير صحيح، حاول مرة أخرى</p>
+    <button class="btn primary" type="submit">دخول</button>
+  </form>
+</div>
+<div class="app" id="app" hidden>
   <header class="cover">
     <p class="ministry">وزارة التعليم</p>
     <h1>مكتبة مدرسة حذيفة بن محصن</h1>
@@ -203,12 +221,30 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
       </div>
     </details>
   </section>
-  <footer class="credit">إعداد: أ. أحمد النعيمي</footer>
+  <footer class="credit">إعداد: أ. أحمد النعيمي<br><button id="logoutBtn" class="logout" type="button">تسجيل الخروج</button></footer>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script>
 (function () {
+  // دخول المعلمين: الرمز نفسه غير مكتوب في الملف أبداً، مخزّن فقط بصمته (SHA-256)
+  var CODE_HASH = "4f9f10b304cfe9b2b11fcb1387f694e18f08ea358c7e9f567434d3ad6cbd7fc4";
+  var gate = document.getElementById("loginGate");
+  var app = document.getElementById("app");
+  function unlock() { gate.hidden = true; app.hidden = false; }
+  if (sessionStorage.getItem("lib-auth") === "1") { unlock(); }
+  function hex(buf) { return Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join(""); }
+  document.getElementById("loginForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var input = document.getElementById("codeInput");
+    var err = document.getElementById("loginErr");
+    if (!window.crypto || !crypto.subtle) { err.textContent = "افتح الموقع من الرابط الآمن (https) للدخول"; err.hidden = false; return; }
+    crypto.subtle.digest("SHA-256", new TextEncoder().encode(input.value.trim())).then(function (buf) {
+      if (hex(buf) === CODE_HASH) { sessionStorage.setItem("lib-auth", "1"); unlock(); }
+      else { err.textContent = "الرمز غير صحيح، حاول مرة أخرى"; err.hidden = false; input.value = ""; input.focus(); }
+    });
+  });
+  document.getElementById("logoutBtn").addEventListener("click", function () { sessionStorage.removeItem("lib-auth"); location.reload(); });
   var CATS = ["ديني", "أدب", "علوم", "تاريخ وجغرافيا", "أطفال", "لغة", "فكر واجتماع", "تقنية", "سير وتراجم", "مراجع", "أخرى"];
   var KW = {
     "ديني": ["قران", "تفسير", "حديث", "فقه", "اسلام", "دعاء", "عقيده", "صلاه", "رياض الصالحين", "الصحيح", "الايمان", "شريعه", "سنه النبويه"],
