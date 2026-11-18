@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>جرد المكتبة</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<style>
+:root {
+  --bg: #EDF2F0; --surface: #FFFFFF; --surface-2: #E2EAE7; --ink: #14302A; --muted: #566B65;
+  --line: #CCD8D4; --accent: #0E6B5A; --accent-ink: #FFFFFF; --warn: #8A5200; --warn-soft: #F7E9CD; --danger: #B3261E;
+  --font: "Segoe UI", "Noto Sans Arabic", Tahoma, system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0E1614; --surface: #16211E; --surface-2: #1F2E2A; --ink: #E4EEEA; --muted: #93A8A1; --line: #2A3B37;
+    --accent: #3DBFA3; --accent-ink: #06241E; --warn: #E5AC57; --warn-soft: #33270F; --danger: #F0847C; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.55;
+  padding-block: 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.app { max-width: 560px; margin-inline: auto; display: flex; flex-direction: column; gap: 14px; }
+h1, h2 { margin: 0; font-weight: 700; }
+h1 { font-size: 28px; line-height: 1.2; } h2 { font-size: 18px; }
+p { margin: 0; }
+.eyebrow { font-size: 13px; color: var(--accent); font-weight: 600; }
+.muted { color: var(--muted); } .small { font-size: 14px; }
+.vh { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.p-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.p-count { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.p-count b { font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; }
+.p-count input { width: 5.5em; text-align: center; }
+.bar { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .3s ease; }
+.note { padding: 10px 12px; border-radius: 8px; font-size: 14px; background: var(--warn-soft); color: var(--warn); }
+.link-line { font-size: 14px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+.dot.ok { background: var(--accent); } .dot.bad { background: var(--danger); }
+.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: var(--surface-2); padding: 4px; border-radius: 10px; }
+button, input, select, textarea { font: inherit; color: inherit; }
+.tabs button { border: 0; background: transparent; padding: 10px; border-radius: 7px; font-weight: 500; cursor: pointer; color: var(--muted); }
+.tabs button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+input[type="text"], input[type="number"], input[type="url"], input[type="password"], select, textarea {
+  width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-height: 44px; }
+label { font-size: 14px; color: var(--muted); font-weight: 500; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.section { display: flex; flex-direction: column; gap: 12px; }
+.shelf-row { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; }
+.capture { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 68px; border-radius: 12px;
+  background: var(--accent); color: var(--accent-ink); font-size: 20px; font-weight: 700; cursor: pointer; }
+.capture:focus-within { outline: 2px solid var(--ink); outline-offset: 3px; }
+.capture svg { width: 28px; height: 28px; }
+.capture-sub { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.check { display: flex; align-items: center; gap: 8px; }
+.check input { width: 20px; height: 20px; accent-color: var(--accent); }
+.linkbtn { background: none; border: 0; color: var(--accent); text-decoration: underline; cursor: pointer; padding: 8px 0; font-size: 14px; }
+.d-top { display: flex; gap: 12px; align-items: flex-start; }
+.thumb { width: 84px; height: 112px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); flex: none; background: var(--surface-2); }
+.d-fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.status { font-size: 14px; min-height: 22px; color: var(--muted); }
+.status[data-kind="ok"] { color: var(--accent); } .status[data-kind="warn"] { color: var(--warn); }
+.status[data-kind="busy"]::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-inline-end: 8px; animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+legend { font-size: 14px; color: var(--muted); font-weight: 500; padding: 0; margin-bottom: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { position: relative; }
+.chip input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.chip span { display: block; padding: 9px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); font-size: 15px; cursor: pointer; }
+.chip input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.line-chip { padding: 8px 12px; border: 1px dashed var(--line); border-radius: 8px; background: var(--bg); cursor: pointer; font-size: 15px; text-align: start; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn { min-height: 46px; padding: 0 18px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-weight: 500; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; flex: 1; }
+.summary { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 14px; }
+.sum-item { display: grid; gap: 4px; min-width: 0; }
+.sum-top { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
+.sum-top b { font-variant-numeric: tabular-nums; }
+.sum-bar { height: 5px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+.sum-bar i { display: block; height: 100%; background: var(--accent); }
+.row { padding: 10px 0; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+.row strong { display: block; overflow-wrap: anywhere; }
+.row span { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+details summary { cursor: pointer; font-weight: 600; }
+details .card-body { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+#toast { position: fixed; inset-inline: 0; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); margin-inline: auto; width: fit-content; max-width: calc(100% - 32px);
+  background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 20; }
+#toast.show { opacity: 1; }
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) { .bar i, #toast { transition: none; } .status[data-kind="busy"]::before { animation: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <p class="eyebrow">غرفة مصادر التعلم</p>
+    <h1>جرد المكتبة</h1>
+  </header>
+
+  <section class="card" aria-label="تقدم الجرد">
+    <div class="p-head">
+      <div class="p-count"><b id="count">0</b><span>من</span><input id="target" type="number" min="1" inputmode="numeric" aria-label="العدد المستهدف من الكتب" value="4000"><span>كتاب</span></div>
+      <p id="today" class="muted small"></p>
+    </div>
+    <div class="bar" id="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="نسبة الجرد"><i id="barFill"></i></div>
+    <p id="remain" class="muted small"></p>
+    <p id="linkLine" class="link-line"><span id="dot" class="dot"></span><span id="linkText"></span></p>
+  </section>
+
+  <p id="warnStore" class="note" hidden>الحفظ في المتصفح غير متاح الآن. اربط الشيت من الإعدادات حتى لا تضيع الكتب.</p>
+
+  <nav class="tabs" aria-label="الأقسام">
+    <button id="tabScan" type="button" aria-pressed="true">تصوير</button>
+    <button id="tabList" type="button" aria-pressed="false">الجرد والإعدادات</button>
+  </nav>
+
+  <section id="viewScan" class="section">
+    <div class="shelf-row">
+      <label for="shelf">رقم الرف</label>
+      <input id="shelf" type="text" autocomplete="off" maxlength="20" placeholder="مثال: A3">
+    </div>
+    <label class="capture" for="photo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l1.6-2.4h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.5" r="3.6"/></svg>
+      <span>صوّر الغلاف</span>
+      <input id="photo" class="vh" type="file" accept="image/*" capture="environment">
+    </label>
+    <div class="capture-sub">
+      <button id="manualBtn" class="linkbtn" type="button">إدخال يدوي بدون صورة</button>
+      <label class="check"><input id="autoCam" type="checkbox" checked><span>افتح الكاميرا بعد الحفظ</span></label>
+    </div>
+    <p id="howto" class="muted small">صوّر الغلاف، صحّح العنوان، اختر القسم، واحفظ. أول صورة تأخذ وقت أطول لأن القراءة تتجهز.</p>
+
+    <form id="draft" class="card" hidden novalidate>
+      <div class="d-top">
+        <img id="thumb" class="thumb" alt="صورة الغلاف" hidden>
+        <div class="d-fields">
+          <p id="status" class="status" role="status"></p>
+          <label for="title">العنوان</label>
+          <input id="title" type="text" autocomplete="off">
+          <label for="author">المؤلف</label>
+          <input id="author" type="text" autocomplete="off">
+        </div>
+      </div>
+      <fieldset id="linesBox" hidden>
+        <legend>النصوص اللي انقرأت من الغلاف. اضغط على سطر لإضافته:</legend>
+        <div class="check" style="margin-bottom:8px">
+          <label class="check"><input type="radio" name="target" value="title" checked><span>إلى العنوان</span></label>
+          <label class="check"><input type="radio" name="target" value="author"><span>إلى المؤلف</span></label>
+        </div>
+        <div id="lines" class="chips"></div>
+      </fieldset>
+      <fieldset>
+        <legend>القسم</legend>
+        <div id="chips" class="chips"></div>
+      </fieldset>
+      <p id="dup" class="note" hidden></p>
+      <div class="actions">
+        <button id="saveBtn" class="btn primary" type="submit">حفظ</button>
+        <button id="skipBtn" class="btn" type="button">تخطّي</button>
+      </div>
+    </form>
+  </section>
+
+  <section id="viewList" class="section" hidden>
+    <div class="card">
+      <h2>الأقسام</h2>
+      <div id="summary" class="summary"></div>
+      <div class="actions">
+        <button id="syncBtn" class="btn" type="button">تحديث من الشيت</button>
+        <button id="copyBtn" class="btn" type="button">نسخ الجدول</button>
+      </div>
+      <textarea id="fallback" rows="5" readonly hidden aria-label="نص الجدول للنسخ اليدوي"></textarea>
+    </div>
+
+    <div class="card">
+      <h2>آخر الكتب</h2>
+      <p id="empty" class="muted small">ما فيه كتب مسجّلة بعد. صوّر أول غلاف وسيظهر هنا.</p>
+      <div id="list"></div>
+      <p class="muted small">لتصحيح كتاب خاطئ، عدّله مباشرة في ملف Google Sheets.</p>
+    </div>
+
+    <details class="card" id="cfgBox">
+      <summary>إعدادات ربط Google Sheets</summary>
+      <div class="card-body">
+        <p class="muted small">تُحفظ على هذا الجهاز فقط. أدخلها مرة واحدة في كل جهاز.</p>
+        <label for="cfgUrl">رابط تطبيق الويب (Apps Script)</label>
+        <input id="cfgUrl" type="url" autocomplete="off" placeholder="https://script.google.com/macros/s/.../exec">
+        <label for="cfgToken">الرمز السري</label>
+        <input id="cfgToken" type="password" autocomplete="off">
+        <label for="cfgDevice">اسم هذا الجهاز</label>
+        <input id="cfgDevice" type="text" autocomplete="off" maxlength="30">
+        <div class="actions"><button id="cfgSave" class="btn primary" type="button">حفظ واختبار الاتصال</button></div>
+        <p id="cfgMsg" class="small muted" role="status"></p>
+      </div>
+    </details>
+  </section>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  var CATS = ["ديني", "أدب", "علوم", "تاريخ وجغرافيا", "أطفال", "لغة", "فكر واجتماع", "تقنية", "سير وتراجم", "مراجع", "أخرى"];
+  var KW = {
+    "ديني": ["قران", "تفسير", "حديث", "فقه", "اسلام", "دعاء", "عقيده", "صلاه", "رياض الصالحين", "الصحيح", "الايمان", "شريعه", "سنه النبويه"],
+    "أدب": ["روايه", "شعر", "ديوان", "قصص", "قصه", "مقامات", "ادب", "مسرحيه", "خواطر"],
+    "علوم": ["فيزياء", "كيمياء", "احياء", "رياضيات", "علوم", "فلك", "طب", "بيئه", "جبر", "هندسه"],
+    "تاريخ وجغرافيا": ["تاريخ", "جغرافيا", "حضاره", "حرب", "اطلس", "فتوح"],
+    "أطفال": ["اطفال", "حكايات", "تلوين", "للصغار"],
+    "لغة": ["نحو", "قواعد", "املاء", "لغه", "بلاغه", "grammar", "english"],
+    "فكر واجتماع": ["فلسفه", "علم النفس", "اجتماع", "تنميه", "فكر", "سياسه", "اقتصاد", "اداره", "تربيه"],
+    "تقنية": ["حاسوب", "برمجه", "انترنت", "تقنيه", "كمبيوتر", "computer"],
+    "سير وتراجم": ["سيره", "تراجم", "مذكرات", "اعلام"],
+    "مراجع": ["معجم", "موسوعه", "قاموس", "فهرس", "دليل"]
+  };
+  var CFG_KEY = "lib-cfg-v1", DATA_KEY = "lib-data-v1";
+
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  function norm(s) {
+    return String(s || "").toLowerCase().replace(/[ً-ٰٟـ]/g, "")
+      .replace(/[أإآ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  }
+  var KWN = Object.keys(KW).map(function (c) { return [c, KW[c].map(norm)]; });
+  function suggest(text) {
+    var n = norm(text), best = "", bs = 0;
+    KWN.forEach(function (p) { var s = 0; p[1].forEach(function (k) { if (k && n.indexOf(k) >= 0) s++; }); if (s > bs) { bs = s; best = p[0]; } });
+    return best;
+  }
+  function cleanLine(s) { return String(s || "").replace(/[|_\[\]{}<>~^`\\]/g, " ").replace(/\s+/g, " ").trim(); }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+  /* ---------- storage ---------- */
+  function read(key) { try { return JSON.parse(localStorage.getItem(key)) || {}; } catch (e) { return {}; } }
+  var cfg = read(CFG_KEY);
+  if (!cfg.device) cfg.device = "جهاز-" + Math.random().toString(36).slice(2, 5);
+  var saved = read(DATA_KEY);
+  var data = {
+    pending: Array.isArray(saved.pending) ? saved.pending : [],
+    remote: Array.isArray(saved.remote) ? saved.remote : [],
+    shelf: saved.shelf || "", target: Number(saved.target) > 0 ? Number(saved.target) : 4000, autoCam: saved.autoCam !== false
+  };
+  function store() {
+    var ok = true;
+    try { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); localStorage.setItem(DATA_KEY, JSON.stringify(data)); } catch (e) { ok = false; }
+    $("warnStore").hidden = ok || linked();
+  }
+  function linked() { return !!(cfg.url && cfg.token); }
+  function allBooks() { return data.remote.concat(data.pending); }
+
+  function toast(msg) {
+    var t = $("toast"); t.textContent = msg; t.classList.add("show");
+    clearTimeout(toast.t); toast.t = setTimeout(function () { t.classList.remove("show"); }, 2400);
+  }
+
+  /* ---------- Google Sheets ---------- */
+  var flushing = false, linkState = "";
+  async function api(method, body) {
+    var res;
+    if (method === "GET") {
+      res = await fetch(cfg.url + (cfg.url.indexOf("?") >= 0 ? "&" : "?") + "token=" + encodeURIComponent(cfg.token) + "&_=" + Date.now());
+    } else {
+      res = await fetch(cfg.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(Object.assign({ token: cfg.token }, body)) });
+    }
+    if (!res.ok) throw { code: "http" };
+    var j = await res.json();
+    if (!j.ok) throw { code: j.error || "fail" };
+    return j;
+  }
+  async function sync() {
+    if (!linked()) return;
+    try {
+      var j = await api("GET");
+      var ids = {}; j.books.forEach(function (b) { ids[b.id] = 1; });
+      data.remote = j.books;
+      data.pending = data.pending.filter(function (b) { return !ids[b.id]; });
+      linkState = "ok"; store(); renderAll();
+    } catch (e) { linkState = e && e.code === "token" ? "token" : "bad"; renderLink(); }
+  }
+  async function flush() {
+    if (flushing || !data.pending.length || !linked()) return;
+    flushing = true; renderLink();
+    var batch = data.pending.slice(0, 50);
+    try {
+      await api("POST", { items: batch });
+      var ids = {}; batch.forEach(function (b) { ids[b.id] = 1; });
+      data.pending = data.pending.filter(function (b) { return !ids[b.id]; });
+      data.remote = data.remote.concat(batch);
+      linkState = "ok"; flushing = false; store(); renderAll();
+      if (data.pending.length) flush();
+    } catch (e) {
+      flushing = false; linkState = e && e.code === "token" ? "token" : "bad"; renderLink();
+    }
+  }
+  window.addEventListener("online", function () { flush(); });
+
+  function renderLink() {
+    var dot = $("dot"), txt = $("linkText"); dot.className = "dot";
+    if (!linked()) { txt.textContent = "غير مربوط بالشيت. الحفظ في هذا الجهاز فقط. اربطه من تبويب الإعدادات."; return; }
+    var p = data.pending.length;
+    if (linkState === "token") { dot.classList.add("bad"); txt.textContent = "الرمز السري غير صحيح. راجع الإعدادات."; }
+    else if (linkState === "bad" || p) { dot.classList.add(linkState === "bad" ? "bad" : ""); txt.textContent = (flushing ? "جاري الإرسال… " : "بانتظار الإرسال: ") + p + " كتاب" + (linkState === "bad" ? " (لا يوجد اتصال، سيُعاد الإرسال تلقائياً)" : ""); }
+    else { dot.classList.add("ok"); txt.textContent = "متصل بالشيت. كل الكتب محفوظة."; }
+  }
+
+  /* ---------- progress ---------- */
+  function renderProgress() {
+    var books = allBooks(), n = books.length;
+    $("count").textContent = n; $("target").value = data.target;
+    var pct = Math.min(100, Math.round((n / data.target) * 100));
+    $("barFill").style.width = pct + "%"; $("bar").setAttribute("aria-valuenow", String(pct));
+    var d0 = new Date(); d0.setHours(0, 0, 0, 0);
+    var today = books.filter(function (b) { return b.time && new Date(b.time).getTime() >= d0.getTime() && b.device === cfg.device; }).length;
+    $("today").textContent = "اليوم من هذا الجهاز: " + today;
+    $("remain").textContent = n >= data.target ? "اكتمل العدد المستهدف." : "المتبقي " + (data.target - n) + " كتاب (" + pct + "%)";
+  }
+  function renderAll() { renderProgress(); renderLink(); renderList(); }
+
+  /* ---------- tabs ---------- */
+  function showTab(scan) {
+    $("viewScan").hidden = !scan; $("viewList").hidden = scan;
+    $("tabScan").setAttribute("aria-pressed", String(scan)); $("tabList").setAttribute("aria-pressed", String(!scan));
+    if (!scan) renderList();
+  }
+  $("tabScan").addEventListener("click", function () { showTab(true); });
+  $("tabList").addEventListener("click", function () { showTab(false); });
+
+  /* ---------- category chips ---------- */
+  var chips = $("chips");
+  CATS.forEach(function (c) {
+    var lab = el("label", "chip"), inp = document.createElement("input");
+    inp.type = "radio"; inp.name = "cat"; inp.value = c; lab.appendChild(inp); lab.appendChild(el("span", null, c)); chips.appendChild(lab);
+  });
+  function getCat() { var r = chips.querySelector("input:checked"); return r ? r.value : ""; }
+  function setCat(v) { chips.querySelectorAll("input").forEach(function (i) { i.checked = i.value === v; }); }
+
+  /* ---------- OCR ---------- */
+  var worker = null, workerP = null, ocrStatus = null;
+  function getWorker() {
+    if (worker) return Promise.resolve(worker);
+    if (!workerP) {
+      workerP = Tesseract.createWorker("ara+eng", 1, {
+        logger: function (m) {
+          if (!ocrStatus) return;
+          if (m.status === "recognizing text") ocrStatus("busy", "جاري قراءة الغلاف… " + Math.round((m.progress || 0) * 100) + "%");
+          else if (/load|init/i.test(m.status || "")) ocrStatus("busy", "جاري تجهيز القراءة (أول مرة فقط)…");
+        }
+      }).then(function (w) { worker = w; return w; }).catch(function (e) { workerP = null; throw e; });
+    }
+    return workerP;
+  }
+  if (window.Tesseract) { getWorker().catch(function () {}); } // يحمّل ملف اللغة من البداية
+
+  async function prep(file) {
+    var bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+    var sc = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    var cv = document.createElement("canvas"); cv.width = Math.round(bmp.width * sc); cv.height = Math.round(bmp.height * sc);
+    var ctx = cv.getContext("2d"); try { ctx.filter = "grayscale(1) contrast(1.3)"; } catch (e) {}
+    ctx.drawImage(bmp, 0, 0, cv.width, cv.height); if (bmp.close) bmp.close();
+    return cv;
+  }
+
+  /* ---------- draft ---------- */
+  var draftUrl = "", reqId = 0;
+  var titleIn = $("title"), authorIn = $("author"), photo = $("photo"), statusEl = $("status");
+  function setStatus(kind, msg) { statusEl.dataset.kind = kind; statusEl.textContent = msg; }
+  function releaseThumb() { if (draftUrl) { URL.revokeObjectURL(draftUrl); draftUrl = ""; } }
+  function openDraft(file) {
+    releaseThumb(); titleIn.value = ""; authorIn.value = ""; setCat(""); $("dup").hidden = true;
+    $("linesBox").hidden = true; $("lines").replaceChildren();
+    var img = $("thumb");
+    if (file) { draftUrl = URL.createObjectURL(file); img.src = draftUrl; img.hidden = false; } else { img.removeAttribute("src"); img.hidden = true; }
+    $("draft").hidden = false; $("howto").hidden = true;
+    return ++reqId;
+  }
+  function closeDraft() { reqId++; ocrStatus = null; releaseThumb(); $("draft").hidden = true; $("howto").hidden = false; }
+
+  photo.addEventListener("change", async function () {
+    var f = photo.files && photo.files[0]; if (!f) return; photo.value = "";
+    var my = openDraft(f);
+    if (!window.Tesseract) { setStatus("warn", "مكتبة القراءة ما تحمّلت. تأكد من الإنترنت أو اكتب يدوياً."); return; }
+    ocrStatus = function (k, m) { if (my === reqId) setStatus(k, m); };
+    setStatus("busy", "جاري تجهيز القراءة…");
+    try {
+      var cv = await prep(f);
+      var w = await getWorker(); if (my !== reqId) return;
+      setStatus("busy", "جاري قراءة الغلاف…");
+      var r = await w.recognize(cv); if (my !== reqId) return;
+      applyOcr(r.data);
+    } catch (e) { if (my === reqId) setStatus("warn", "تعذّرت القراءة. اكتب العنوان يدوياً."); }
+  });
+
+  function applyOcr(d) {
+    var lines = [];
+    (d.lines || []).forEach(function (l) {
+      var t = cleanLine(l.text);
+      if (t.length < 3 || !/[\p{L}]/u.test(t) || (l.confidence != null && l.confidence < 35)) return;
+      var h = l.bbox ? (l.bbox.y1 - l.bbox.y0) : 0, y = l.bbox ? l.bbox.y0 : 0;
+      lines.push({ t: t, h: h, y: y });
+    });
+    if (!lines.length) {
+      cleanLine(d.text).split(/\s{2,}|\n/).forEach(function (t) { t = cleanLine(t); if (t.length >= 3) lines.push({ t: t, h: 0, y: lines.length }); });
+    }
+    if (!lines.length) { setStatus("warn", "ما انقرأ شيء. صوّر الغلاف أقرب وبإضاءة أوضح، أو اكتب يدوياً."); return; }
+    lines.sort(function (a, b) { return a.y - b.y; });
+    var maxH = Math.max.apply(null, lines.map(function (l) { return l.h; }));
+    var big = lines.filter(function (l) { return maxH > 0 && l.h >= maxH * 0.72; }).slice(0, 3);
+    titleIn.value = big.map(function (l) { return l.t; }).join(" ");
+    var box = $("lines"); box.replaceChildren();
+    lines.slice(0, 10).forEach(function (l) {
+      var b = el("button", "line-chip", l.t); b.type = "button";
+      b.addEventListener("click", function () {
+        var tgt = document.querySelector('input[name="target"]:checked').value === "author" ? authorIn : titleIn;
+        tgt.value = (tgt.value ? tgt.value + " " : "") + l.t; checkDup();
+      });
+      box.appendChild(b);
+    });
+    $("linesBox").hidden = false;
+    var s = suggest(lines.map(function (l) { return l.t; }).join(" "));
+    if (s) setCat(s);
+    checkDup();
+    setStatus("warn", "راجع العنوان" + (s ? " والقسم المقترح" : " واختر القسم") + " قبل الحفظ.");
+  }
+
+  $("manualBtn").addEventListener("click", function () { openDraft(null); setStatus("", "اكتب العنوان واختر القسم."); titleIn.focus(); });
+  $("skipBtn").addEventListener("click", closeDraft);
+
+  function checkDup() {
+    var n = norm(titleIn.value), box = $("dup");
+    if (n.length < 3) { box.hidden = true; return; }
+    var f = allBooks().find(function (b) { return norm(b.title) === n; });
+    if (f) { box.textContent = "هذا العنوان مسجّل من قبل" + (f.shelf ? " في الرف " + f.shelf : "") + ". احفظه فقط إذا كانت نسخة ثانية."; box.hidden = false; } else box.hidden = true;
+  }
+  titleIn.addEventListener("input", function () { setCatHint(); checkDup(); });
+  function setCatHint() { if (!getCat()) { var s = suggest(titleIn.value); if (s) setCat(s); } }
+
+  $("draft").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var cat = getCat(); if (!cat) { setStatus("warn", "اختر القسم أولاً."); return; }
+    data.shelf = $("shelf").value.trim();
+    data.pending.push({ id: uid(), time: Date.now(), cat: cat, title: titleIn.value.trim(), author: authorIn.value.trim(), shelf: data.shelf, device: cfg.device });
+    store(); closeDraft(); renderAll(); flush();
+    toast("تم الحفظ. العدد " + allBooks().length);
+    if ($("autoCam").checked) { try { photo.click(); } catch (e) {} }
+  });
+
+  $("shelf").value = data.shelf;
+  $("shelf").addEventListener("change", function () { data.shelf = $("shelf").value.trim(); store(); });
+  $("autoCam").checked = data.autoCam;
+  $("autoCam").addEventListener("change", function () { data.autoCam = $("autoCam").checked; store(); });
+  $("target").addEventListener("change", function () { var v = Math.round(Number($("target").value)); if (v > 0) data.target = v; store(); renderProgress(); });
+
+  /* ---------- list / export ---------- */
+  function renderList() {
+    var books = allBooks(), counts = {}; CATS.forEach(function (c) { counts[c] = 0; });
+    books.forEach(function (b) { counts[b.cat] = (counts[b.cat] || 0) + 1; });
+    var max = 1; CATS.forEach(function (c) { if (counts[c] > max) max = counts[c]; });
+    var box = $("summary"); box.replaceChildren();
+    CATS.forEach(function (c) {
+      var item = el("div", "sum-item"), top = el("div", "sum-top");
+      top.appendChild(el("span", null, c)); top.appendChild(el("b", null, String(counts[c])));
+      var bar = el("div", "sum-bar"), fill = document.createElement("i"); fill.style.width = Math.round((counts[c] / max) * 100) + "%";
+      bar.appendChild(fill); item.appendChild(top); item.appendChild(bar); box.appendChild(item);
+    });
+    var list = $("list"); list.replaceChildren();
+    books.slice(-15).reverse().forEach(function (b) {
+      var row = el("div", "row"); row.appendChild(el("strong", null, b.title || "(بدون عنوان)"));
+      row.appendChild(el("span", null, [b.cat, b.author, b.shelf ? "الرف " + b.shelf : ""].filter(Boolean).join(" · "))); list.appendChild(row);
+    });
+    $("empty").hidden = books.length > 0;
+  }
+  $("syncBtn").addEventListener("click", async function () {
+    if (!linked()) { toast("اربط الشيت أولاً من الإعدادات"); return; }
+    await flush(); await sync(); toast(linkState === "ok" ? "تم التحديث" : "تعذّر الاتصال بالشيت");
+  });
+  $("copyBtn").addEventListener("click", async function () {
+    var books = allBooks(); if (!books.length) { toast("ما فيه كتب للنسخ بعد"); return; }
+    var order = {}; CATS.forEach(function (c, i) { order[c] = i; });
+    var sorted = books.slice().sort(function (a, b) { return ((order[a.cat] || 0) - (order[b.cat] || 0)) || String(a.title).localeCompare(String(b.title), "ar"); });
+    var rows = [["م", "القسم", "العنوان", "المؤلف", "الرف"]].concat(sorted.map(function (b, i) { return [i + 1, b.cat, b.title, b.author || "", b.shelf || ""]; }));
+    var text = rows.map(function (r) { return r.map(function (x) { return String(x).replace(/[\t\r\n]+/g, " "); }).join("\t"); }).join("\n");
+    try { await navigator.clipboard.writeText(text); $("fallback").hidden = true; toast("تم النسخ. الصقه في Google Sheets"); }
+    catch (e) { var ta = $("fallback"); ta.hidden = false; ta.value = text; ta.focus(); ta.select(); toast("انسخ النص يدوياً من المربع"); }
+  });
+
+  /* ---------- settings ---------- */
+  $("cfgUrl").value = cfg.url || ""; $("cfgToken").value = cfg.token || ""; $("cfgDevice").value = cfg.device;
+  if (!linked()) $("cfgBox").open = false;
+  $("cfgSave").addEventListener("click", async function () {
+    cfg.url = $("cfgUrl").value.trim(); cfg.token = $("cfgToken").value.trim(); cfg.device = $("cfgDevice").value.trim() || cfg.device;
+    store(); var msg = $("cfgMsg");
+    if (!linked()) { msg.textContent = "تم الحفظ. الجهاز غير مربوط بالشيت."; renderAll(); return; }
+    msg.textContent = "جاري الاختبار…";
+    await sync();
+    msg.textContent = linkState === "ok" ? "تم الربط. عدد الكتب في الشيت: " + data.remote.length : linkState === "token" ? "الرمز السري غير صحيح." : "تعذّر الاتصال. تأكد من الرابط ومن أن الوصول 'أي شخص'.";
+    flush();
+  });
+
+  store(); renderAll();
+  if (linked()) { sync().then(flush); }
+})();
+</script>
+</body>
+</html>
