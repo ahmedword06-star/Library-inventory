@@ -380,6 +380,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     <div class="actions"><button id="worldSearchBtn" class="btn primary" type="button">ابحث</button></div>
     <p class="muted small" style="margin-top:14px">أو تصفح حسب التصنيف:</p>
     <div class="chips" id="worldChips">
+      <button type="button" class="chip" data-cat="newest" aria-pressed="false">الأحدث</button>
       <button type="button" class="chip" data-cat="bestsellers" aria-pressed="false">الأكثر مبيعاً</button>
       <button type="button" class="chip" data-cat="scifi" aria-pressed="false">خيال علمي</button>
       <button type="button" class="chip" data-cat="novels" aria-pressed="false">روايات</button>
@@ -1146,6 +1147,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
   $("langEn").addEventListener("click", function () { setWorldLang("en"); });
   syncLangButtons();
   var WORLD_CATS = {
+    newest: { label: "الأحدث", q: "fiction", orderBy: "newest", ar: "رواية", newest: true },
     bestsellers: { label: "الأكثر مبيعاً", q: "subject:fiction", orderBy: "relevance", ar: "رواية", arStart: 10 },
     scifi: { label: "خيال علمي", q: "subject:\"science fiction\"", ar: "خيال علمي" },
     novels: { label: "روايات", q: "subject:fiction", orderBy: "relevance", start: 10, ar: "رواية" },
@@ -1175,11 +1177,33 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
       else { q = cat.q; lang = "en"; start = cat.start || 0; }
       orderBy = cat.orderBy || null;
     } else q = typedQ;
-    var res = await fetch(cfg.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ token: cfg.token, action: "booksSearch", q: q, lang: lang, orderBy: orderBy, start: start }) });
-    if (!res.ok) throw { code: res.status };
-    var d = await res.json();
-    if (!d.ok) { var m = /books-(\d+)/.exec(d.error || ""); throw { code: m ? +m[1] : 0 }; }
-    return d.items || [];
+    async function fetchPage(st) {
+      var res = await fetch(cfg.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ token: cfg.token, action: "booksSearch", q: q, lang: lang, orderBy: orderBy, start: st }) });
+      if (!res.ok) throw { code: res.status };
+      var d = await res.json();
+      if (!d.ok) { var m = /books-(\d+)/.exec(d.error || ""); throw { code: m ? +m[1] : 0 }; }
+      return d.items || [];
+    }
+    var items = await fetchPage(start);
+    if (cat && cat.newest) {
+      // ترتيب الأحدث من قوقل غير دقيق ويكرر العنوان نفسه (طبعات مختلفة)،
+      // فنجلب صفحة ثانية ونزيل المكرر ونرتب حسب تاريخ النشر تنازلياً.
+      try { var more = await fetchPage(start + 10); items = items.concat(more); } catch (e) {}
+      var seen = {};
+      var uniq = [];
+      items.forEach(function (it) {
+        var t = ((it.volumeInfo && it.volumeInfo.title) || "").trim().toLowerCase();
+        if (!t || seen[t]) return;
+        seen[t] = true; uniq.push(it);
+      });
+      uniq.sort(function (a, b) {
+        var da = (a.volumeInfo && a.volumeInfo.publishedDate) || "";
+        var db = (b.volumeInfo && b.volumeInfo.publishedDate) || "";
+        if (da < db) return 1; if (da > db) return -1; return 0;
+      });
+      return uniq.slice(0, 10);
+    }
+    return items;
   }
   async function searchWorld(catKey) {
     var cat = catKey ? WORLD_CATS[catKey] : null;
@@ -1198,7 +1222,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     }
   }
   /* ---------- رفوف المكتبة الرقمية (تظهر عند فتح التبويب) ---------- */
-  var SHELF_CATS = ["bestsellers", "scifi", "novels"];
+  var SHELF_CATS = ["newest", "bestsellers", "scifi", "novels"];
   var shelvesLoaded = false;
   function shelfCacheGet(key) { try { var s = sessionStorage.getItem("lib-shelf-" + worldLang + "-" + key); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
   function shelfCacheSet(key, items) { try { sessionStorage.setItem("lib-shelf-" + worldLang + "-" + key, JSON.stringify(items)); } catch (e) {} }
