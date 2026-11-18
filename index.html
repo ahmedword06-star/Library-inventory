@@ -127,6 +127,7 @@ legend { font-size: 14px; color: var(--muted); font-weight: 500; padding: 0; mar
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
 .chip { border: 1px solid var(--accent); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 8px 14px; font-size: 14px; min-height: 38px; cursor: pointer; font-family: inherit; }
 .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.lang-switch { margin-bottom: 12px; }
 .shelf { margin-top: 20px; }
 .shelf-title { font-size: 17px; margin: 0 0 10px; }
 .shelf-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
@@ -342,6 +343,10 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
   </section>
   <section class="card" id="viewWorld" hidden>
     <p class="muted small">ابحث في مكتبة قوقل الرقمية — ملايين الكتب من كل العالم.</p>
+    <div class="tabs lang-switch" role="group" aria-label="لغة الكتب">
+      <button id="langAr" type="button" aria-pressed="true">العربية</button>
+      <button id="langEn" type="button" aria-pressed="false">English</button>
+    </div>
     <label for="worldSearch">ابحث عن كتاب</label>
     <input id="worldSearch" type="text" autocomplete="off" placeholder="مثال: Harry Potter">
     <div class="actions"><button id="worldSearchBtn" class="btn primary" type="button">ابحث</button></div>
@@ -349,8 +354,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     <div class="chips" id="worldChips">
       <button type="button" class="chip" data-cat="bestsellers" aria-pressed="false">الأكثر مبيعاً</button>
       <button type="button" class="chip" data-cat="scifi" aria-pressed="false">خيال علمي</button>
-      <button type="button" class="chip" data-cat="english" aria-pressed="false">روايات إنجليزية</button>
-      <button type="button" class="chip" data-cat="arabic" aria-pressed="false">روايات عربية</button>
+      <button type="button" class="chip" data-cat="novels" aria-pressed="false">روايات</button>
       <button type="button" class="chip" data-cat="literary" aria-pressed="false">روايات أدبية</button>
       <button type="button" class="chip" data-cat="biography" aria-pressed="false">سيرة ذاتية</button>
       <button type="button" class="chip" data-cat="kids" aria-pressed="false">قصص أطفال</button>
@@ -1057,35 +1061,63 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
   $("tabWorld").addEventListener("click", function () { showWorldTab(true); });
   $("worldSearchBtn").addEventListener("click", function () { searchWorld(); });
   $("worldSearch").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); searchWorld(); } });
+  /* ---------- لغة كتب المكتبة الرقمية (العربية افتراضياً) ---------- */
+  var worldLang = "ar";
+  try { worldLang = localStorage.getItem("lib-world-lang") || "ar"; } catch (e) {}
+  if (worldLang !== "en") worldLang = "ar";
+  function syncLangButtons() {
+    $("langAr").setAttribute("aria-pressed", String(worldLang === "ar"));
+    $("langEn").setAttribute("aria-pressed", String(worldLang === "en"));
+  }
+  function setWorldLang(lang) {
+    if (lang === worldLang) return;
+    worldLang = lang;
+    try { localStorage.setItem("lib-world-lang", lang); } catch (e) {}
+    syncLangButtons();
+    document.querySelectorAll("#worldChips .chip").forEach(function (c) { c.setAttribute("aria-pressed", "false"); });
+    $("worldResults").replaceChildren();
+    $("worldHint").textContent = "اكتب عنوان الكتاب أو اسم المؤلف ثم اضغط ابحث.";
+    shelvesLoaded = false;
+    $("worldShelves").replaceChildren();
+    loadShelves();
+  }
+  $("langAr").addEventListener("click", function () { setWorldLang("ar"); });
+  $("langEn").addEventListener("click", function () { setWorldLang("en"); });
+  syncLangButtons();
   var WORLD_CATS = {
-    bestsellers: { label: "الأكثر مبيعاً", q: "subject:fiction", orderBy: "relevance" },
-    scifi: { label: "خيال علمي", q: "subject:\"science fiction\"" },
-    english: { label: "روايات إنجليزية", q: "subject:fiction", lang: "en" },
-    arabic: { label: "روايات عربية", q: "رواية", lang: "ar" },
-    literary: { label: "روايات أدبية", q: "subject:\"literary fiction\"" },
-    biography: { label: "سيرة ذاتية", q: "subject:biography" },
-    kids: { label: "قصص أطفال", q: "subject:\"juvenile fiction\"" },
-    fantasy: { label: "فانتازيا", q: "subject:fantasy" },
-    adventure: { label: "مغامرات", q: "subject:adventure" },
-    mystery: { label: "غموض وتشويق", q: "subject:mystery" },
-    horror: { label: "رعب", q: "subject:horror" },
-    poetry: { label: "شعر", q: "subject:poetry" },
-    history: { label: "تاريخ", q: "subject:history" },
-    science: { label: "علوم", q: "subject:science" },
-    selfhelp: { label: "تطوير الذات", q: "subject:self-help" },
-    islamic: { label: "كتب إسلامية", q: "subject:islam" },
-    comics: { label: "قصص مصورة", q: "subject:comics" },
-    classics: { label: "كلاسيكيات", q: "subject:classics" }
+    bestsellers: { label: "الأكثر مبيعاً", q: "subject:fiction", orderBy: "relevance", ar: "رواية", arStart: 10 },
+    scifi: { label: "خيال علمي", q: "subject:\"science fiction\"", ar: "خيال علمي" },
+    novels: { label: "روايات", q: "subject:fiction", orderBy: "relevance", start: 10, ar: "رواية" },
+    literary: { label: "روايات أدبية", q: "subject:\"literary fiction\"", ar: "روايات أدبية" },
+    biography: { label: "سيرة ذاتية", q: "subject:biography", ar: "سيرة ذاتية" },
+    kids: { label: "قصص أطفال", q: "subject:\"juvenile fiction\"", ar: "قصص أطفال" },
+    fantasy: { label: "فانتازيا", q: "subject:fantasy", ar: "فانتازيا" },
+    adventure: { label: "مغامرات", q: "subject:adventure", ar: "مغامرات" },
+    mystery: { label: "غموض وتشويق", q: "subject:mystery", ar: "قصص بوليسية" },
+    horror: { label: "رعب", q: "subject:horror", ar: "روايات رعب" },
+    poetry: { label: "شعر", q: "subject:poetry", ar: "شعر" },
+    history: { label: "تاريخ", q: "subject:history", ar: "تاريخ" },
+    science: { label: "علوم", q: "subject:science", ar: "علوم" },
+    selfhelp: { label: "تطوير الذات", q: "subject:self-help", ar: "تطوير الذات" },
+    islamic: { label: "كتب إسلامية", q: "subject:islam", ar: "كتب إسلامية" },
+    comics: { label: "قصص مصورة", q: "subject:comics", ar: "قصص مصورة" },
+    classics: { label: "كلاسيكيات", q: "subject:classics", ar: "كلاسيكيات" }
   };
   document.querySelectorAll("#worldChips .chip").forEach(function (c) {
     c.addEventListener("click", function () { searchWorld(c.dataset.cat); });
   });
   function stripHtml(s) { var d = document.createElement("div"); d.innerHTML = s || ""; return (d.textContent || "").trim(); }
   async function fetchWorldBooks(cat, typedQ) {
-    var q = cat ? cat.q : typedQ;
+    var q, lang = null, start = 0, orderBy = null;
+    if (cat) {
+      if (worldLang === "ar" && cat.ar) { q = cat.ar; lang = "ar"; start = cat.arStart || 0; }
+      else { q = cat.q; lang = "en"; start = cat.start || 0; }
+      orderBy = cat.orderBy || null;
+    } else q = typedQ;
     var url = "https://www.googleapis.com/books/v1/volumes?q=" + encodeURIComponent(q) + "&maxResults=10&printType=books";
-    if (cat && cat.lang) url += "&langRestrict=" + cat.lang;
-    if (cat && cat.orderBy) url += "&orderBy=" + cat.orderBy;
+    if (lang) url += "&langRestrict=" + lang;
+    if (orderBy) url += "&orderBy=" + orderBy;
+    if (start) url += "&startIndex=" + start;
     if (GOOGLE_BOOKS_KEY) url += "&key=" + GOOGLE_BOOKS_KEY;
     var res = await fetch(url);
     if (!res.ok) throw { code: res.status };
@@ -1109,10 +1141,10 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     }
   }
   /* ---------- رفوف المكتبة الرقمية (تظهر عند فتح التبويب) ---------- */
-  var SHELF_CATS = ["bestsellers", "scifi", "arabic"];
+  var SHELF_CATS = ["bestsellers", "scifi", "novels"];
   var shelvesLoaded = false;
-  function shelfCacheGet(key) { try { var s = sessionStorage.getItem("lib-shelf-" + key); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
-  function shelfCacheSet(key, items) { try { sessionStorage.setItem("lib-shelf-" + key, JSON.stringify(items)); } catch (e) {} }
+  function shelfCacheGet(key) { try { var s = sessionStorage.getItem("lib-shelf-" + worldLang + "-" + key); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+  function shelfCacheSet(key, items) { try { sessionStorage.setItem("lib-shelf-" + worldLang + "-" + key, JSON.stringify(items)); } catch (e) {} }
   function renderShelf(catKey, items) {
     var cat = WORLD_CATS[catKey];
     var shelf = el("div", "shelf");
