@@ -20,6 +20,11 @@
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.55;
   padding-block: 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .app { max-width: 560px; margin-inline: auto; display: flex; flex-direction: column; gap: 14px; }
+.cover { text-align: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 14px; display: flex; flex-direction: column; gap: 4px; }
+.cover .ministry { font-size: 14px; color: var(--accent); font-weight: 700; margin: 0; }
+.cover h1 { font-size: 24px; }
+.cover .subtitle { font-size: 16px; color: var(--muted); font-weight: 600; margin: 0; }
+.credit { text-align: center; color: var(--muted); font-size: 14px; font-weight: 600; padding: 6px 0 2px; }
 h1, h2 { margin: 0; font-weight: 700; }
 h1 { font-size: 28px; line-height: 1.2; } h2 { font-size: 18px; }
 p { margin: 0; }
@@ -95,9 +100,10 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
 </head>
 <body>
 <div class="app">
-  <header>
-    <p class="eyebrow">غرفة مصادر التعلم</p>
-    <h1>جرد المكتبة</h1>
+  <header class="cover">
+    <p class="ministry">وزارة التعليم</p>
+    <h1>مكتبة مدرسة حذيفة بن محصن</h1>
+    <p class="subtitle">جرد المكتبة — غرفة مصادر التعلم</p>
   </header>
 
   <section class="card" aria-label="تقدم الجرد">
@@ -197,6 +203,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
       </div>
     </details>
   </section>
+  <footer class="credit">إعداد: أ. أحمد النعيمي</footer>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>
 
