@@ -647,7 +647,7 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     var p = data.pending.length;
     if (linkState === "token") { dot.classList.add("bad"); txt.textContent = "الرمز السري غير صحيح. راجع الإعدادات."; }
     else if (linkState === "bad" || p) {
-      dot.classList.add(linkState === "bad" ? "bad" : "");
+      if (linkState === "bad") dot.classList.add("bad");
       var errTxt = "";
       if (linkState === "bad") {
         try { var lf = JSON.parse(localStorage.getItem("lib-last-flush") || "null"); if (lf && lf.failed && lf.lastErr) errTxt = " — خطأ: " + (lf.lastErr.code || "") + " " + (lf.lastErr.detail || ""); } catch (e) { }
