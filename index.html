@@ -290,6 +290,9 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
 
     <div class="card">
       <h2>آخر الكتب</h2>
+      <div class="actions">
+        <button id="excelBtn" class="btn" type="button">حفظ Excel</button>
+      </div>
       <p id="empty" class="muted small">ما فيه كتب مسجّلة بعد. صوّر أول غلاف وسيظهر هنا.</p>
       <div id="list"></div>
       <p class="muted small">لتصحيح كتاب خاطئ، عدّله مباشرة في ملف Google Sheets.</p>
@@ -1055,6 +1058,24 @@ details .card-body { display: flex; flex-direction: column; gap: 10px; margin-to
     var text = rows.map(function (r) { return r.map(function (x) { return String(x).replace(/[\t\r\n]+/g, " "); }).join("\t"); }).join("\n");
     try { await navigator.clipboard.writeText(text); $("fallback").hidden = true; toast("تم النسخ. الصقه في Google Sheets"); }
     catch (e) { var ta = $("fallback"); ta.hidden = false; ta.value = text; ta.focus(); ta.select(); toast("انسخ النص يدوياً من المربع"); }
+  });
+  $("excelBtn").addEventListener("click", function () {
+    var books = allBooks(); if (!books.length) { toast("ما فيه كتب للحفظ بعد"); return; }
+    var order = {}; CATS.forEach(function (c, i) { order[c] = i; });
+    var sorted = books.slice().sort(function (a, b) { return ((order[a.cat] || 0) - (order[b.cat] || 0)) || String(a.title).localeCompare(String(b.title), "ar"); });
+    var rows = [["م", "القسم", "رقم التصنيف", "العنوان", "المؤلف", "الرف", "الجهاز", "التاريخ"]].concat(sorted.map(function (b, i) {
+      var d = b.time ? new Date(Number(b.time)) : null;
+      var ds = (d && !isNaN(d.getTime())) ? d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate() : "";
+      return [i + 1, b.cat || "", b.cls || "", b.title || "", b.author || "", b.shelf || "", b.device || "", ds];
+    }));
+    var csv = "\uFEFF" + rows.map(function (r) { return r.map(function (x) { var s = String(x == null ? "" : x); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(","); }).join("\r\n");
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    var d0 = new Date();
+    var fname = "رفوف-حذيفة-جرد-" + d0.getFullYear() + "-" + String(d0.getMonth() + 1).padStart(2, "0") + "-" + String(d0.getDate()).padStart(2, "0") + ".csv";
+    a.href = URL.createObjectURL(blob); a.download = fname; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    toast("تم حفظ ملف Excel (" + sorted.length + " كتاب)");
   });
 
   /* ---------- settings ---------- */
